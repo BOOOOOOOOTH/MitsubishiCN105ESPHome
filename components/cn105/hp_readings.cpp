@@ -486,6 +486,10 @@ void CN105Climate::getDataFromResponsePacket() {
         // reset the powerRequestWithoutResponses to 0 as we had a response
         this->powerRequestWithoutResponses = 0;
 
+        // Request functions packets to check for DIRECT/INDIRECT distinction
+        ESP_LOGD(LOG_CYCLE_TAG, "6a: Sending functions request (0x20)");
+        this->getFunctions();
+
         this->terminateCycle();
         break;
 
@@ -502,11 +506,29 @@ void CN105Climate::getDataFromResponsePacket() {
             if (data[0] == 0x20) {
                 functions.setData1(&data[1]);
                 ESP_LOGI(LOG_CYCLE_TAG, "Got functions packet 1, requesting part 2");
+                
+                // Enhanced logging for DIRECT/INDIRECT discovery
+                ESP_LOGI(TAG, "FUNCTIONS_PACKET_1: Received functions packet 1 - data[1-15]:");
+                for (int i = 1; i <= 15; i++) {
+                    ESP_LOGI(TAG, "FUNCTIONS_PACKET_1: data[%d]: 0x%02X (decimal: %d)", i, data[i], data[i]);
+                }
+                
                 this->getFunctionsPart2();
             } else {
                 functions.setData2(&data[1]);
                 ESP_LOGI(LOG_CYCLE_TAG, "Got functions packet 2");
+                
+                // Enhanced logging for DIRECT/INDIRECT discovery
+                ESP_LOGI(TAG, "FUNCTIONS_PACKET_2: Received functions packet 2 - data[1-15]:");
+                for (int i = 1; i <= 15; i++) {
+                    ESP_LOGI(TAG, "FUNCTIONS_PACKET_2: data[%d]: 0x%02X (decimal: %d)", i, data[i], data[i]);
+                }
+                
                 this->functionsArrived();
+                
+                // Terminate cycle after receiving both functions packets
+                ESP_LOGD(LOG_CYCLE_TAG, "6b: Functions packets received, terminating cycle");
+                this->terminateCycle();
             }
         }
     }
