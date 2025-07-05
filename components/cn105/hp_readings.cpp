@@ -273,8 +273,9 @@ void CN105Climate::getSettingsFromResponsePacket() {
         }
         
         receivedSettings.wideVane = lookupByteMapValue(WIDEVANE_MAP, WIDEVANE, 11, data[10], "wideVane reading");
-        this->wideVaneAdj = (data[10] & 0xF0) == 0x80 ? true : false;        
-        ESP_LOGD("Decoder", "[wideVane: %s (adj:%d)]", receivedSettings.wideVane, this->wideVaneAdj);
+        this->wideVaneAdj = (data[10] & 0x80) == 0x80 ? true : false;        
+        ESP_LOGI("Decoder", "[wideVane: %s (adj:%d)] raw byte: 0x%02X, bit7: %s", 
+                 receivedSettings.wideVane, this->wideVaneAdj, data[10], this->wideVaneAdj ? "set" : "clear");
     } else {
         ESP_LOGD("Decoder", "widevane is not supported");
     }
