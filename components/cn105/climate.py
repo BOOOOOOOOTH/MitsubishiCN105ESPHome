@@ -400,7 +400,7 @@ def to_code(config):
         conf = config["discovery_dump_button"]
         button_var = yield cg.new_Pvariable(conf[CONF_ID], DiscoveryDumpButton())
         yield cg.register_component(button_var, conf)
-        cg.add(button_var.add_press_action(cg.RawExpression(f"{var}->dump_discovered_widevane_values()")))
+        cg.add(button_var.add_press_action(cg.RawExpression(f"[]{var}->dump_discovered_widevane_values();")))
 
     # --- TRAITEMENT POUR STAGE_SENSOR AVEC LA NOUVELLE OPTION ---
     if CONF_STAGE_SENSOR in config:
