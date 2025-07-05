@@ -676,10 +676,17 @@ void CN105Climate::updateExtraSelectComponents(heatpumpSettings& settings) {
         }
     }
     if (this->horizontal_vane_select_ != nullptr) {
+        ESP_LOGI(TAG, "UI_UPDATE_DEBUG: Checking wide vane UI update - current UI state: '%s', new setting: '%s'", 
+                 this->horizontal_vane_select_->state.c_str(), settings.wideVane ? settings.wideVane : "NULL");
         if (this->hasChanged(this->horizontal_vane_select_->state.c_str(), settings.wideVane, "select wideVane")) {
-            ESP_LOGI(TAG, "widevane setting (extra select component) changed");
+            ESP_LOGI(TAG, "widevane setting (extra select component) changed - updating UI from '%s' to '%s'", 
+                     this->horizontal_vane_select_->state.c_str(), settings.wideVane);
             this->horizontal_vane_select_->publish_state(settings.wideVane);
+        } else {
+            ESP_LOGI(TAG, "UI_UPDATE_DEBUG: No UI update needed - states match");
         }
+    } else {
+        ESP_LOGI(TAG, "UI_UPDATE_DEBUG: horizontal_vane_select_ is null - no UI component to update");
     }
 }
 void CN105Climate::checkFanSettings(heatpumpSettings& settings, bool updateCurrentSettings) {

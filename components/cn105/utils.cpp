@@ -51,6 +51,9 @@ void CN105Climate::dump_discovered_widevane_values() {
 }
 
 bool CN105Climate::hasChanged(const char* before, const char* now, const char* field, bool checkNotNull) {
+    ESP_LOGI(TAG, "HASCHANGED_DEBUG: Comparing %s - before: '%s', now: '%s'", 
+             field, before ? before : "NULL", now ? now : "NULL");
+    
     if (now == NULL) {
         if (checkNotNull) {
             ESP_LOGE(TAG, "CAUTION: expected value in hasChanged() function for %s, got NULL", field);
@@ -59,7 +62,10 @@ bool CN105Climate::hasChanged(const char* before, const char* now, const char* f
         }
         return false;
     }
-    return ((before == NULL) || (strcmp(before, now) != 0));
+    
+    bool changed = ((before == NULL) || (strcmp(before, now) != 0));
+    ESP_LOGI(TAG, "HASCHANGED_DEBUG: %s hasChanged result: %s", field, changed ? "YES" : "NO");
+    return changed;
 }
 
 

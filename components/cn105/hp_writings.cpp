@@ -257,6 +257,8 @@ void CN105Climate::sendWantedSettingsDelegate() {
     this->createPacket(packet);
     this->writePacket(packet, PACKET_LEN);
     this->hpPacketDebug(packet, 22, "WRITE_SETTINGS");
+    ESP_LOGI(TAG, "WIDEVANE_DEBUG: Full packet sent for wide vane change:");
+    this->hpPacketDebug(packet, 22, "WIDEVANE_FULL");
 
     this->publishWantedSettingsStateToHA();
 
