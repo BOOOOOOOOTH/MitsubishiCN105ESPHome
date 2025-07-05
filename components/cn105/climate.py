@@ -246,7 +246,7 @@ CONFIG_SCHEMA = climate.climate_schema(CN105Climate).extend(
         cv.Optional(
             CONF_HP_UP_TIME_CONNECTION_SENSOR
         ): HP_UP_TIME_CONNECTION_SENSOR_SCHEMA,
-        cv.Optional("discovery_dump_button"): button.button_schema(button.Button).extend({
+        cv.Optional("discovery_dump_button"): button.button_schema().extend({
             cv.GenerateID(): cv.declare_id(button.Button),
         }),
         cv.Optional(CONF_SUPPORTS, default={}): cv.Schema(
@@ -395,7 +395,7 @@ def to_code(config):
     if "discovery_dump_button" in config:
         conf = config["discovery_dump_button"]
         button_var = yield button.new_button(conf)
-        cg.add(button_var.add_press_action(cg.RawExpression(f"{var}.dump_discovered_widevane_values()")))
+        cg.add(button_var.add_press_action(cg.RawExpression(f"{var}->dump_discovered_widevane_values()")))
 
     # --- TRAITEMENT POUR STAGE_SENSOR AVEC LA NOUVELLE OPTION ---
     if CONF_STAGE_SENSOR in config:

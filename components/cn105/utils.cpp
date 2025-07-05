@@ -1,6 +1,9 @@
 #include "cn105.h"
 #include "Globals.h"
 
+// Static array to track discovered wide vane values for reverse engineering
+extern bool discovered_widevane_values[256]; // Track all possible byte values
+
 using namespace esphome;
 
 void esphome::log_info_uint32(const char* tag, const char* msg, uint32_t value, const char* suffix) {
