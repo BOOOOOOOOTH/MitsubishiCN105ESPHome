@@ -113,7 +113,7 @@ SubModSensor = cg.global_ns.class_("SubModSensor", text_sensor.TextSensor, cg.Co
 AutoSubModSensor = cg.global_ns.class_(
     "AutoSubModSensor", text_sensor.TextSensor, cg.Component
 )
-DiscoveryDumpButton = cg.global_ns.class_("DiscoveryDumpButton", button.Button, cg.Component)
+
 uptime_ns = cg.esphome_ns.namespace("esphome").namespace("uptime")
 HpUpTimeConnectionSensor = uptime_ns.class_(
     "HpUpTimeConnectionSensor", sensor.Sensor, cg.PollingComponent
@@ -247,12 +247,7 @@ CONFIG_SCHEMA = climate.climate_schema(CN105Climate).extend(
         cv.Optional(
             CONF_HP_UP_TIME_CONNECTION_SENSOR
         ): HP_UP_TIME_CONNECTION_SENSOR_SCHEMA,
-        cv.Optional("discovery_dump_button"): cv.Schema({
-            cv.GenerateID(): cv.declare_id(DiscoveryDumpButton),
-            cv.Required(CONF_NAME): cv.string,
-            cv.Optional(CONF_ICON, default="mdi:bug"): cv.icon,
-            cv.Optional("disabled_by_default", default=False): cv.boolean,
-        }),
+        cv.Optional("discovery_dump_button"): button.BUTTON_SCHEMA,
         cv.Optional(CONF_SUPPORTS, default={}): cv.Schema(
             {
                 cv.Optional(CONF_MODE, default=DEFAULT_CLIMATE_MODES): cv.ensure_list(
@@ -398,8 +393,7 @@ def to_code(config):
 
     if "discovery_dump_button" in config:
         conf = config["discovery_dump_button"]
-        button_var = yield cg.new_Pvariable(conf[CONF_ID], DiscoveryDumpButton())
-        yield cg.register_component(button_var, conf)
+        button_var = yield button.new_button(conf)
         cg.add(button_var.add_press_action(cg.RawExpression(f"[{var}]() {{ {var}->dump_discovered_widevane_values(); }}")))
 
     # --- TRAITEMENT POUR STAGE_SENSOR AVEC LA NOUVELLE OPTION ---

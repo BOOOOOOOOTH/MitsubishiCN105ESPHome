@@ -14,7 +14,6 @@
 #include "functions_sensor.h"
 #include "functions_number.h"
 #include "functions_button.h"
-#include "discovery_dump_button.h"
 #include "sub_mode_sensor.h"
 #include <esphome/components/sensor/sensor.h>
 #include <esphome/components/button/button.h>
