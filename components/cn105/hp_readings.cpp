@@ -305,6 +305,18 @@ void CN105Climate::getSettingsFromResponsePacket() {
         ESP_LOGI(TAG, "WIDEVANE_PROTOCOL_DISCOVERY: Full packet bytes 7-11: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
                  data[7], data[8], data[9], data[10], data[11]);
         
+        // Additional analysis for indirect/direct vs wide vane positions
+        if (strcmp(receivedSettings.wideVane, "INDIRECT") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
+            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: This appears to be an INDIRECT/DIRECT mode setting");
+            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: data[10] = 0x%02X, bit7 = %s", 
+                     data[10], this->wideVaneAdj ? "set" : "clear");
+            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: This might be an override of the normal wide vane position");
+        } else {
+            ESP_LOGI(TAG, "WIDEVANE_POSITION_ANALYSIS: This appears to be a wide vane position setting");
+            ESP_LOGI(TAG, "WIDEVANE_POSITION_ANALYSIS: data[10] = 0x%02X, bit7 = %s", 
+                     data[10], this->wideVaneAdj ? "set" : "clear");
+        }
+        
         // Protocol discovery: We need to understand what distinguishes DIRECT from INDIRECT
         // Currently we see 0x80 for INDIRECT, but we don't know what value represents DIRECT
         // The distinction might be in other bytes or different bit patterns
