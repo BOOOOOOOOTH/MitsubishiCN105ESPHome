@@ -96,6 +96,13 @@ static const char* SUB_MODE_MAP[4] = { "NORMAL", "DEFROST", "PREHEAT", "STANDBY"
 static const uint8_t AUTO_SUB_MODE[4] = { 0x00, 0x01, 0x02, 0x03 };
 static const char* AUTO_SUB_MODE_MAP[4] = { "AUTO_OFF","AUTO_COOL", "AUTO_HEAT", "AUTO_LEADER" };
 
+// ISEE Direction modes - controlled via function codes
+static const uint8_t ISEE_DIRECTION[3] = { 0x01, 0x02, 0x03 };
+static const char* ISEE_DIRECTION_MAP[3] = { "AUTO", "INDIRECT", "DIRECT" };
+
+// Function codes for ISEE direction modes (these need to be determined for your specific model)
+static const int ISEE_DIRECTION_FUNCTION_CODE = 101; // This is a placeholder - actual code varies by model
+
 static const int TIMER_INCREMENT_MINUTES = 10;
 
 static const uint8_t FUNCTIONS_SET_PART1 = 0x1F;
@@ -131,6 +138,7 @@ struct heatpumpSettings {
     const char* vane; //vertical vane, up/down
     const char* wideVane; //horizontal vane, left/right
     bool iSee;   //iSee sensor, at the moment can only detect it, not set it
+    const char* iseeDirection; //ISEE direction mode: AUTO, INDIRECT, DIRECT
     bool connected;
     const char* stage;
     const char* sub_mode;
@@ -143,6 +151,7 @@ struct heatpumpSettings {
         fan = nullptr;
         vane = nullptr;
         wideVane = nullptr;
+        iseeDirection = nullptr;
     }
 
     heatpumpSettings& operator=(const heatpumpSettings& other) {
@@ -154,6 +163,7 @@ struct heatpumpSettings {
             vane = other.vane;
             wideVane = other.wideVane;
             iSee = other.iSee;
+            iseeDirection = other.iseeDirection;
             connected = other.connected;
             stage = other.stage;
             sub_mode = other.sub_mode;
@@ -169,7 +179,8 @@ struct heatpumpSettings {
             temperature == other.temperature &&
             fan == other.fan &&
             vane == other.vane &&
-            wideVane == other.wideVane;
+            wideVane == other.wideVane &&
+            iseeDirection == other.iseeDirection;
         //iSee == other.iSee;
     }
 

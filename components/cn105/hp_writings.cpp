@@ -131,6 +131,14 @@ const char* CN105Climate::getWideVaneSetting() {
     }
 }
 
+const char* CN105Climate::getISeeDirectionSetting() {
+    if (this->wantedSettings.iseeDirection) {
+        return this->wantedSettings.iseeDirection;
+    } else {
+        return this->currentSettings.iseeDirection;
+    }
+}
+
 const char* CN105Climate::getFanSpeedSetting() {
     if (this->wantedSettings.fan) {
         return this->wantedSettings.fan;
@@ -247,6 +255,13 @@ void CN105Climate::sendWantedSettingsDelegate() {
     this->lastSend = CUSTOM_MILLIS;
     ESP_LOGI(TAG, "sending wantedSettings..");
     this->debugSettings("wantedSettings", wantedSettings);
+    
+    // Send function codes if ISEE direction has changed
+    if (this->wantedSettings.iseeDirection != nullptr) {
+        ESP_LOGI(TAG, "sending ISEE direction function codes..");
+        this->setFunctions(functions);
+    }
+    
     // and then we send the update packet
     uint8_t packet[PACKET_LEN] = {};
     this->createPacket(packet);

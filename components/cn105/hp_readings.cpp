@@ -647,6 +647,12 @@ void CN105Climate::updateExtraSelectComponents(heatpumpSettings& settings) {
             this->horizontal_vane_select_->publish_state(settings.wideVane);
         }
     }
+    if (this->isee_direction_select_ != nullptr) {
+        if (this->hasChanged(this->isee_direction_select_->state.c_str(), settings.iseeDirection, "select iseeDirection")) {
+            ESP_LOGI(TAG, "isee direction setting (extra select component) changed");
+            this->isee_direction_select_->publish_state(settings.iseeDirection);
+        }
+    }
 }
 void CN105Climate::checkFanSettings(heatpumpSettings& settings, bool updateCurrentSettings) {
     /*

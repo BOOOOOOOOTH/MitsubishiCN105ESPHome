@@ -410,6 +410,18 @@ void CN105Climate::setWideVaneSetting(const char* setting) {
     }
 }
 
+void CN105Climate::setISeeDirectionSetting(const char* setting) {
+    int index = lookupByteMapIndex(ISEE_DIRECTION_MAP, 3, setting);
+    if (index > -1) {
+        wantedSettings.iseeDirection = ISEE_DIRECTION_MAP[index];
+        // Set the function code for ISEE direction
+        functions.setValue(ISEE_DIRECTION_FUNCTION_CODE, index + 1);
+    } else {
+        wantedSettings.iseeDirection = ISEE_DIRECTION_MAP[0];
+        functions.setValue(ISEE_DIRECTION_FUNCTION_CODE, 1);
+    }
+}
+
 void CN105Climate::set_remote_temperature(float setting) {
     this->shouldSendExternalTemperature_ = true;
     if (use_fahrenheit_support_mode_) {

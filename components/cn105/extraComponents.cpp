@@ -52,6 +52,26 @@ void CN105Climate::set_horizontal_vane_select(
 
 }
 
+void CN105Climate::set_isee_direction_select(
+    ISeeDirectionSelect* isee_direction_select) {
+    this->isee_direction_select_ = isee_direction_select;
+
+    // builds option list from ISEE direction map
+    std::vector<std::string> iseeDirectionOptions(std::begin(ISEE_DIRECTION_MAP), std::end(ISEE_DIRECTION_MAP));
+    this->isee_direction_select_->traits.set_options(iseeDirectionOptions);
+
+    this->isee_direction_select_->setCallbackFunction([this](const char* setting) {
+
+        ESP_LOGD("EVT", "iseeDirection.control() -> Demande un chgt de réglage de la direction ISEE: %s", setting);
+
+        this->setISeeDirectionSetting(setting);
+        this->wantedSettings.hasChanged = true;
+        this->wantedSettings.hasBeenSent = false;
+        this->wantedSettings.lastChange = CUSTOM_MILLIS;
+        });
+
+}
+
 void CN105Climate::set_compressor_frequency_sensor(
     sensor::Sensor* compressor_frequency_sensor) {
     this->compressor_frequency_sensor_ = compressor_frequency_sensor;

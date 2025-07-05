@@ -2,6 +2,7 @@
 #include "Globals.h"
 #include "heatpumpFunctions.h"
 #include "van_orientation_select.h"
+#include "isee_direction_select.h"
 #include "uptime_connection_sensor.h"
 #include "compressor_frequency_sensor.h"
 #include "input_power_sensor.h"
@@ -39,6 +40,7 @@ namespace esphome {
 
         void set_vertical_vane_select(VaneOrientationSelect* vertical_vane_select);
         void set_horizontal_vane_select(VaneOrientationSelect* horizontal_vane_select);
+        void set_isee_direction_select(ISeeDirectionSelect* isee_direction_select);
         void set_compressor_frequency_sensor(esphome::sensor::Sensor* compressor_frequency_sensor);
         void set_input_power_sensor(esphome::sensor::Sensor* input_power_sensor);
         void set_kwh_sensor(esphome::sensor::Sensor* kwh_sensor);
@@ -83,6 +85,8 @@ namespace esphome {
             nullptr;  // Select to store manual position of vertical swing
         VaneOrientationSelect* horizontal_vane_select_ =
             nullptr;  // Select to store manual position of horizontal swing
+        ISeeDirectionSelect* isee_direction_select_ =
+            nullptr;  // Select to store ISEE direction mode
         sensor::Sensor* compressor_frequency_sensor_ =
             nullptr;  // Sensor to store compressor frequency
         sensor::Sensor* input_power_sensor_ =
@@ -231,6 +235,7 @@ namespace esphome {
         const char* getVaneSetting();
         const char* getWideVaneSetting();
         const char* getFanSpeedSetting();
+        const char* getISeeDirectionSetting();
         float getTemperatureSetting();
 
         void setModeSetting(const char* setting);
@@ -238,6 +243,7 @@ namespace esphome {
         void setVaneSetting(const char* setting);
         void setWideVaneSetting(const char* setting);
         void setFanSpeed(const char* setting);
+        void setISeeDirectionSetting(const char* setting);
 
         void setHeatpumpConnected(bool state);
 

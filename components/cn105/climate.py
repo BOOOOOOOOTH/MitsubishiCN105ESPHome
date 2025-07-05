@@ -58,6 +58,7 @@ DEPENDENCIES = ["uart", "uptime"]  # Garder uart ici aussi
 CONF_SUPPORTS = "supports"
 CONF_HORIZONTAL_SWING_SELECT = "horizontal_vane_select"
 CONF_VERTICAL_SWING_SELECT = "vertical_vane_select"
+CONF_ISEE_DIRECTION_SELECT = "isee_direction_select"
 CONF_COMPRESSOR_FREQUENCY_SENSOR = "compressor_frequency_sensor"
 CONF_INPUT_POWER_SENSOR = "input_power_sensor"
 CONF_KWH_SENSOR = "kwh_sensor"
@@ -103,6 +104,7 @@ OutsideAirTemperatureSensor = cg.global_ns.class_(
     "OutsideAirTemperatureSensor", sensor.Sensor, cg.Component
 )
 ISeeSensor = cg.global_ns.class_("ISeeSensor", binary_sensor.BinarySensor, cg.Component)
+ISeeDirectionSelect = cg.global_ns.class_("ISeeDirectionSelect", select.Select, cg.Component)
 StageSensor = cg.global_ns.class_("StageSensor", text_sensor.TextSensor, cg.Component)
 FunctionsSensor = cg.global_ns.class_(
     "FunctionsSensor", text_sensor.TextSensor, cg.Component
@@ -168,6 +170,9 @@ OUTSIDE_AIR_TEMPERATURE_SENSOR_SCHEMA = sensor.sensor_schema(OutsideAirTemperatu
 ISEE_SENSOR_SCHEMA = binary_sensor.binary_sensor_schema(ISeeSensor).extend(
     {cv.GenerateID(CONF_ID): cv.declare_id(ISeeSensor)}
 )
+ISEE_DIRECTION_SELECT_SCHEMA = select.select_schema(ISeeDirectionSelect).extend(
+    {cv.GenerateID(CONF_ID): cv.declare_id(ISeeDirectionSelect)}
+)
 FUNCTIONS_SENSOR_SCHEMA = text_sensor.text_sensor_schema(FunctionsSensor).extend(
     {cv.GenerateID(CONF_ID): cv.declare_id(FunctionsSensor)}
 )
@@ -218,6 +223,7 @@ CONFIG_SCHEMA = climate.climate_schema(CN105Climate).extend(
         cv.Optional(CONF_UPDATE_INTERVAL, default="2s"): cv.All(cv.update_interval),
         cv.Optional(CONF_HORIZONTAL_SWING_SELECT): SELECT_SCHEMA,
         cv.Optional(CONF_VERTICAL_SWING_SELECT): SELECT_SCHEMA,
+        cv.Optional(CONF_ISEE_DIRECTION_SELECT): ISEE_DIRECTION_SELECT_SCHEMA,
         cv.Optional(
             CONF_COMPRESSOR_FREQUENCY_SENSOR
         ): COMPRESSOR_FREQUENCY_SENSOR_SCHEMA,
@@ -314,6 +320,11 @@ def to_code(config):
         conf_item = config[CONF_VERTICAL_SWING_SELECT]
         swing_select_var = yield select.new_select(conf_item, options=[])
         cg.add(var.set_vertical_vane_select(swing_select_var))
+
+    if CONF_ISEE_DIRECTION_SELECT in config:
+        conf_item = config[CONF_ISEE_DIRECTION_SELECT]
+        isee_direction_select_var = yield select.new_select(conf_item, options=[])
+        cg.add(var.set_isee_direction_select(isee_direction_select_var))
 
     # Pour les capteurs, text_sensors, etc., utiliser la méthode .new_... standard
     # Ces fonctions s'occupent de l'enregistrement du composant.
