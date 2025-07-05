@@ -246,7 +246,9 @@ CONFIG_SCHEMA = climate.climate_schema(CN105Climate).extend(
         cv.Optional(
             CONF_HP_UP_TIME_CONNECTION_SENSOR
         ): HP_UP_TIME_CONNECTION_SENSOR_SCHEMA,
-        cv.Optional("discovery_dump_button"): button.BUTTON_SCHEMA,
+        cv.Optional("discovery_dump_button"): button.button_schema().extend({
+            cv.GenerateID(): cv.declare_id(button.Button),
+        }),
         cv.Optional(CONF_SUPPORTS, default={}): cv.Schema(
             {
                 cv.Optional(CONF_MODE, default=DEFAULT_CLIMATE_MODES): cv.ensure_list(
@@ -391,7 +393,8 @@ def to_code(config):
         cg.add(var.set_use_fahrenheit_support_mode(config.get(CONF_FAHRENHEIT_SUPPORT_MODE)))
 
     if "discovery_dump_button" in config:
-        button_var = yield button.new_button(config["discovery_dump_button"])
+        conf = config["discovery_dump_button"]
+        button_var = yield button.new_button(conf)
         cg.add(button_var.add_press_action(cg.RawExpression(f"{var}.dump_discovered_widevane_values()")))
 
     # --- TRAITEMENT POUR STAGE_SENSOR AVEC LA NOUVELLE OPTION ---
