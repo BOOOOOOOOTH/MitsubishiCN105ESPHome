@@ -48,7 +48,6 @@ namespace esphome {
         void set_stage_sensor(esphome::text_sensor::TextSensor* Stage_sensor);
         void set_use_stage_for_operating_status(bool value);
         void set_use_fahrenheit_support_mode(bool value);
-        void dump_discovered_widevane_values();
 
         void set_functions_sensor(esphome::text_sensor::TextSensor* Functions_sensor);
         void set_functions_get_button(FunctionsButton* Button);

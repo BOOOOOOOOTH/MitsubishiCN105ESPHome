@@ -34,11 +34,6 @@ void CN105Climate::setup() {
     this->setupUART();
     this->sendFirstConnectionPacket();
     
-    // Dump discovered wide vane values immediately and after 10 seconds
-    this->dump_discovered_widevane_values();
-    this->set_timeout("dump_widevane_discovery", 10000, [this]() {
-        this->dump_discovered_widevane_values();
-    });
 }
 
 
