@@ -246,7 +246,7 @@ CONFIG_SCHEMA = climate.climate_schema(CN105Climate).extend(
         cv.Optional(
             CONF_HP_UP_TIME_CONNECTION_SENSOR
         ): HP_UP_TIME_CONNECTION_SENSOR_SCHEMA,
-        cv.Optional("discovery_dump_button"): button.button_schema().extend({
+        cv.Optional("discovery_dump_button"): button.button_schema(button.Button).extend({
             cv.GenerateID(): cv.declare_id(button.Button),
         }),
         cv.Optional(CONF_SUPPORTS, default={}): cv.Schema(
