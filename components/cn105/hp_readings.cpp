@@ -291,6 +291,12 @@ void CN105Climate::getSettingsFromResponsePacket() {
             // Check if there might be a different byte controlling DIRECT vs INDIRECT
             ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Checking other bytes - data[7]: 0x%02X, data[8]: 0x%02X, data[9]: 0x%02X, data[11]: 0x%02X", 
                      data[7], data[8], data[9], data[11]);
+            
+            // Check if data[11] might be the key - it's consistently 0xB2 in the logs
+            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: data[11] analysis - value: 0x%02X, bits: %d%d%d%d%d%d%d%d", 
+                     data[11], 
+                     (data[11] & 0x80) ? 1 : 0, (data[11] & 0x40) ? 1 : 0, (data[11] & 0x20) ? 1 : 0, (data[11] & 0x10) ? 1 : 0,
+                     (data[11] & 0x08) ? 1 : 0, (data[11] & 0x04) ? 1 : 0, (data[11] & 0x02) ? 1 : 0, (data[11] & 0x01) ? 1 : 0);
         }
     } else {
         ESP_LOGD("Decoder", "widevane is not supported");
