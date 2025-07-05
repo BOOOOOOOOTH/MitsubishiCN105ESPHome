@@ -5,7 +5,7 @@ using namespace esphome;
 //#region heatpump_functions fonctions clim
 
 void CN105Climate::getFunctions() {
-    ESP_LOGV(TAG, "getting the list of functions...");
+    ESP_LOGI(TAG, "Getting the list of functions...");
 
     functions.clear();
 
@@ -15,13 +15,14 @@ void CN105Climate::getFunctions() {
     packet1[5] = FUNCTIONS_GET_PART1;
     packet1[21] = checkSum(packet1, 21);
 
+    ESP_LOGI(TAG, "Sending function codes request part 1 (0x%02X)", FUNCTIONS_GET_PART1);
     writePacket(packet1, PACKET_LEN);
 
     // Read command will issue part 2.
 }
 
 void CN105Climate::getFunctionsPart2() {
-    ESP_LOGV(TAG, "getting the list of functions part 2...");
+    ESP_LOGI(TAG, "Getting the list of functions part 2...");
 
     uint8_t packet2[PACKET_LEN] = {};
 
@@ -29,12 +30,16 @@ void CN105Climate::getFunctionsPart2() {
     packet2[5] = FUNCTIONS_GET_PART2;
     packet2[21] = checkSum(packet2, 21);
 
+    ESP_LOGI(TAG, "Sending function codes request part 2 (0x%02X)", FUNCTIONS_GET_PART2);
     writePacket(packet2, PACKET_LEN);
 }
 
 void CN105Climate::functionsArrived() {
 
     // Called after 2nd packet has arrived.
+
+    ESP_LOGI(TAG, "Function codes response received");
+    ESP_LOGI(TAG, "Functions valid: %s", functions.isValid() ? "true" : "false");
 
     char states[256];
     states[0] = '\0';  // Initialize as empty string
@@ -43,12 +48,14 @@ void CN105Climate::functionsArrived() {
 
     heatpumpFunctionCodes codes = functions.getAllCodes();
     ESP_LOGI(TAG, "Function codes received:");
+    int validCodes = 0;
     for (int i = 0; i < MAX_FUNCTION_CODE_COUNT; ++i) {
         if (codes.valid[i]) {
             int code = codes.code[i];
             int value = functions.getValue(code);
             if (value > 0) {  // only values 1, 2, 3 are valid -- 0 values mean something the device does not support
                 ESP_LOGI(TAG, "  Code %i: Value %i", code, value);
+                validCodes++;
                 int written = snprintf(pos, remaining, "%i: %i ", code, value);
                 if (written < 0 || static_cast<size_t>(written) >= remaining) {
                     // Buffer full or error
@@ -60,9 +67,17 @@ void CN105Climate::functionsArrived() {
         }
     }
 
-    // Publish the results of all the codes in the Functions sensor
-    if (this->Functions_sensor_ != nullptr) {
-        this->Functions_sensor_->publish_state(states);
+    if (validCodes == 0) {
+        ESP_LOGW(TAG, "No valid function codes found - your model may not support function codes");
+        if (this->Functions_sensor_ != nullptr) {
+            this->Functions_sensor_->publish_state("No function codes available");
+        }
+    } else {
+        ESP_LOGI(TAG, "Found %d valid function codes", validCodes);
+        // Publish the results of all the codes in the Functions sensor
+        if (this->Functions_sensor_ != nullptr) {
+            this->Functions_sensor_->publish_state(states);
+        }
     }
 }
 
@@ -125,13 +140,23 @@ bool heatpumpFunctions::isValid() const {
 }
 
 void heatpumpFunctions::setData1(uint8_t* data) {
+    ESP_LOGI(TAG, "Setting function data 1:");
+    for (int i = 0; i < 15; i++) {
+        ESP_LOGI(TAG, "  data1[%d] = 0x%02X", i, data[i]);
+    }
     memcpy(raw, data, 15);
     _isValid1 = true;
+    ESP_LOGI(TAG, "Function data 1 set, isValid1 = true");
 }
 
 void heatpumpFunctions::setData2(uint8_t* data) {
+    ESP_LOGI(TAG, "Setting function data 2:");
+    for (int i = 0; i < 15; i++) {
+        ESP_LOGI(TAG, "  data2[%d] = 0x%02X", i, data[i]);
+    }
     memcpy(raw + 15, data, 15);
     _isValid2 = true;
+    ESP_LOGI(TAG, "Function data 2 set, isValid2 = true");
 }
 
 void heatpumpFunctions::getData1(uint8_t* data) const {
@@ -157,14 +182,20 @@ int heatpumpFunctions::getValue(uint8_t b) {
 }
 
 int heatpumpFunctions::getValue(int code) {
-    if (code > 128 || code < 101)
+    if (code > 128 || code < 101) {
+        ESP_LOGD(TAG, "Function code %d out of range (101-128)", code);
         return 0;
-
-    for (int i = 0; i < MAX_FUNCTION_CODE_COUNT; ++i) {
-        if (getCode(raw[i]) == code)
-            return getValue(raw[i]);
     }
 
+    for (int i = 0; i < MAX_FUNCTION_CODE_COUNT; ++i) {
+        if (getCode(raw[i]) == code) {
+            int value = getValue(raw[i]);
+            ESP_LOGD(TAG, "Found function code %d at index %d with value %d", code, i, value);
+            return value;
+        }
+    }
+
+    ESP_LOGD(TAG, "Function code %d not found", code);
     return 0;
 }
 
@@ -187,10 +218,13 @@ bool heatpumpFunctions::setValue(int code, int value) {
 
 heatpumpFunctionCodes heatpumpFunctions::getAllCodes() {
     heatpumpFunctionCodes result;
+    ESP_LOGI(TAG, "Getting all function codes from raw data:");
     for (int i = 0; i < MAX_FUNCTION_CODE_COUNT; ++i) {
+        ESP_LOGI(TAG, "  raw[%d] = 0x%02X", i, raw[i]);
         int code = getCode(raw[i]);
         result.code[i] = code;
         result.valid[i] = (code >= 101 && code <= 128);
+        ESP_LOGI(TAG, "  Code %d: %d (valid: %s)", i, code, result.valid[i] ? "true" : "false");
     }
 
     return result;

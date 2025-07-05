@@ -208,6 +208,13 @@ void CN105Climate::getSettingsFromResponsePacket() {
     ESP_LOGD("Decoder", "[0x02 is settings]");
     //02 00 00 01 08 0A 00 07 00 00 03 AA 00 00 00 00 94
     //this->last_received_packet_sensor->publish_state("0x62-> 0x02: Data -> Settings");
+    
+    // Debug: Log all settings packet data
+    ESP_LOGI("Decoder", "Settings packet data:");
+    for (int i = 0; i < dataLength; i++) {
+        ESP_LOGI("Decoder", "  data[%d] = 0x%02X", i, data[i]);
+    }
+    
     receivedSettings.connected = true;      // we're here so we're connected (actually not used property)
     receivedSettings.power = lookupByteMapValue(POWER_MAP, POWER, 2, data[3], "power reading");
     receivedSettings.iSee = data[4] > 0x08 ? true : false;
@@ -418,24 +425,32 @@ void CN105Climate::getDataFromResponsePacket() {
 
     case 0x20: // fallthrough
     case 0x22: {
-        ESP_LOGD("Decoder", "[Packet Functions 0x20 et 0x22]");
+        ESP_LOGI("Decoder", "[Packet Functions 0x%02X] - dataLength: %d", data[0], dataLength);
         //this->last_received_packet_sensor->publish_state("0x62-> 0x20/0x22: Data -> Packet functions");
         if (dataLength == 0x10) {
             if (data[0] == 0x20) {
+                ESP_LOGI(LOG_CYCLE_TAG, "Processing functions packet 1 (0x20)");
                 functions.setData1(&data[1]);
                 ESP_LOGI(LOG_CYCLE_TAG, "Got functions packet 1, requesting part 2");
                 this->getFunctionsPart2();
             } else {
+                ESP_LOGI(LOG_CYCLE_TAG, "Processing functions packet 2 (0x22)");
                 functions.setData2(&data[1]);
                 ESP_LOGI(LOG_CYCLE_TAG, "Got functions packet 2");
                 this->functionsArrived();
             }
+        } else {
+            ESP_LOGW("Decoder", "Function packet length mismatch - expected 0x10, got 0x%02X", dataLength);
         }
     }
              break;
 
     default:
         ESP_LOGW("Decoder", "packet type [%02X] <-- unknown and unexpected", data[0]);
+        ESP_LOGI("Decoder", "Unknown packet data: ");
+        for (int i = 0; i < dataLength; i++) {
+            ESP_LOGI("Decoder", "  data[%d] = 0x%02X", i, data[i]);
+        }
         //this->last_received_packet_sensor->publish_state("0x62-> ?? : Data -> Unknown");
         break;
     }
