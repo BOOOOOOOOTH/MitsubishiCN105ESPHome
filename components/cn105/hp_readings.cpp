@@ -278,7 +278,7 @@ void CN105Climate::getSettingsFromResponsePacket() {
                  receivedSettings.wideVane, this->wideVaneAdj, data[10], this->wideVaneAdj ? "set" : "clear");
         
         // Additional debugging for DIRECT vs INDIRECT issue
-        if (strcmp(receivedSettings.wideVane, "INDIRECT") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
+        if (strcmp(receivedSettings.wideVane, "DIRECTIONAL") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
             ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Received wide vane byte 0x%02X -> mapped to '%s'", 
                      data[10], receivedSettings.wideVane);
             ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Full packet data[10]: 0x%02X, bit7: %s, low nibble: 0x%01X", 
@@ -306,8 +306,8 @@ void CN105Climate::getSettingsFromResponsePacket() {
                  data[7], data[8], data[9], data[10], data[11]);
         
         // Additional analysis for indirect/direct vs wide vane positions
-        if (strcmp(receivedSettings.wideVane, "INDIRECT") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
-            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: This appears to be an INDIRECT/DIRECT mode setting");
+        if (strcmp(receivedSettings.wideVane, "DIRECTIONAL") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
+            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: This appears to be a DIRECTIONAL/DIRECT mode setting");
             ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: data[10] = 0x%02X, bit7 = %s", 
                      data[10], this->wideVaneAdj ? "set" : "clear");
             ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: This might be an override of the normal wide vane position");
@@ -429,6 +429,11 @@ void CN105Climate::terminateCycle() {
 }
 void CN105Climate::getDataFromResponsePacket() {
 
+    // Enhanced packet discovery logging
+    ESP_LOGI(TAG, "PACKET_DISCOVERY: Received packet type 0x%02X (decimal: %d)", data[0], data[0]);
+    ESP_LOGI(TAG, "PACKET_DISCOVERY: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
+             data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
+
     switch (this->data[0]) {
     case 0x02:             /* setting information */
         ESP_LOGD(LOG_CYCLE_TAG, "2b: Receiving settings response");
@@ -450,12 +455,18 @@ void CN105Climate::getDataFromResponsePacket() {
     case 0x04:
         /* unknown */
         ESP_LOGI("Decoder", "[0x04 is unknown : not implemented]");
+        ESP_LOGI(TAG, "PACKET_0x04_ANALYSIS: Unknown packet type 0x04 received - might contain DIRECT/INDIRECT distinction");
+        ESP_LOGI(TAG, "PACKET_0x04_ANALYSIS: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
+                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->last_received_packet_sensor->publish_state("0x62-> 0x04: Data -> Unknown");
         break;
 
     case 0x05:
         /* timer packet */
         ESP_LOGW("Decoder", "[0x05 is Timer : not implemented]");
+        ESP_LOGI(TAG, "PACKET_0x05_ANALYSIS: Timer packet type 0x05 received - might contain DIRECT/INDIRECT distinction");
+        ESP_LOGI(TAG, "PACKET_0x05_ANALYSIS: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
+                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->last_received_packet_sensor->publish_state("0x62-> 0x05: Data -> Timer Packet");
         break;
 
@@ -489,12 +500,21 @@ void CN105Climate::getDataFromResponsePacket() {
         // Request functions packets to check for DIRECT/INDIRECT distinction
         ESP_LOGD(LOG_CYCLE_TAG, "6a: Sending functions request (0x20)");
         this->getFunctions();
+        
+        // Request additional packet types that might contain DIRECT/INDIRECT distinction
+        ESP_LOGD(LOG_CYCLE_TAG, "7a: Sending additional packet requests (0x04, 0x05, 0x10)");
+        this->buildAndSendRequestPacket(2); // 0x04 - unknown
+        this->buildAndSendRequestPacket(3); // 0x05 - timers  
+        this->buildAndSendRequestPacket(4); // 0x10 - unknown
 
         this->terminateCycle();
         break;
 
     case 0x10:
         ESP_LOGD("Decoder", "[0x10 is Unknown : not implemented]");
+        ESP_LOGI(TAG, "PACKET_0x10_ANALYSIS: Unknown packet type 0x10 received - might contain DIRECT/INDIRECT distinction");
+        ESP_LOGI(TAG, "PACKET_0x10_ANALYSIS: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
+                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->getAutoModeStateFromResponsePacket();
         break;
 
@@ -536,6 +556,10 @@ void CN105Climate::getDataFromResponsePacket() {
 
     default:
         ESP_LOGW("Decoder", "packet type [%02X] <-- unknown and unexpected", data[0]);
+        ESP_LOGI(TAG, "UNKNOWN_PACKET_ANALYSIS: Unknown packet type 0x%02X received", data[0]);
+        ESP_LOGI(TAG, "UNKNOWN_PACKET_ANALYSIS: This might contain DIRECT/INDIRECT distinction data");
+        ESP_LOGI(TAG, "UNKNOWN_PACKET_ANALYSIS: Full unknown packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
+                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->last_received_packet_sensor->publish_state("0x62-> ?? : Data -> Unknown");
         break;
     }
