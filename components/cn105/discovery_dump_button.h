@@ -9,10 +9,19 @@ namespace esphome {
     public:
         DiscoveryDumpButton() {}
 
+        void add_press_action(std::function<void()>&& action) {
+            this->press_action_ = std::move(action);
+        }
+
     protected:
         void press_action() override {
-            // This will be handled by the lambda in the Python code
+            if (this->press_action_) {
+                this->press_action_();
+            }
         }
+
+    private:
+        std::function<void()> press_action_;
     };
 
 } 
