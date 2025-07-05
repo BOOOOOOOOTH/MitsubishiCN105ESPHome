@@ -394,7 +394,7 @@ def to_code(config):
     if "discovery_dump_button" in config:
         conf = config["discovery_dump_button"]
         button_var = yield button.new_button(conf)
-        cg.add(button_var.add_press_action(cg.RawExpression(f"[{var}]() {{ {var}->dump_discovered_widevane_values(); }}")))
+        # Removed add_press_action; use ESPHome automations instead
 
     # --- TRAITEMENT POUR STAGE_SENSOR AVEC LA NOUVELLE OPTION ---
     if CONF_STAGE_SENSOR in config:
