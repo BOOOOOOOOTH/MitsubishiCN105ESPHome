@@ -177,3 +177,25 @@ void CN105Climate::set_use_fahrenheit_support_mode(bool value) {
     ESP_LOGI(TAG, "Fahrenheit compatibility mode enabled: %s", value ? "true" : "false");
 }
 
+// Helper method to test ISEE direction function codes
+void CN105Climate::testISeeDirectionFunctionCode(int functionCode) {
+    ESP_LOGI(TAG, "Testing ISEE direction function code %d", functionCode);
+    
+    // Test all three values (1=AUTO, 2=INDIRECT, 3=DIRECT)
+    for (int value = 1; value <= 3; value++) {
+        if (functions.setValue(functionCode, value)) {
+            ESP_LOGI(TAG, "Set function code %d to value %d", functionCode, value);
+            // Send the function codes
+            if (setFunctions(functions)) {
+                ESP_LOGI(TAG, "Successfully sent function code %d with value %d", functionCode, value);
+            } else {
+                ESP_LOGW(TAG, "Failed to send function code %d with value %d", functionCode, value);
+            }
+        } else {
+            ESP_LOGW(TAG, "Failed to set function code %d to value %d", functionCode, value);
+        }
+        // Wait a bit between tests
+        delay(2000);
+    }
+}
+

@@ -415,7 +415,12 @@ void CN105Climate::setISeeDirectionSetting(const char* setting) {
     if (index > -1) {
         wantedSettings.iseeDirection = ISEE_DIRECTION_MAP[index];
         // Set the function code for ISEE direction
-        functions.setValue(ISEE_DIRECTION_FUNCTION_CODE, index + 1);
+        // Note: You need to update ISEE_DIRECTION_FUNCTION_CODE in Globals.h with the correct code for your model
+        if (functions.setValue(ISEE_DIRECTION_FUNCTION_CODE, index + 1)) {
+            ESP_LOGI(TAG, "Set ISEE direction to %s (function code %d, value %d)", setting, ISEE_DIRECTION_FUNCTION_CODE, index + 1);
+        } else {
+            ESP_LOGW(TAG, "Failed to set ISEE direction function code %d", ISEE_DIRECTION_FUNCTION_CODE);
+        }
     } else {
         wantedSettings.iseeDirection = ISEE_DIRECTION_MAP[0];
         functions.setValue(ISEE_DIRECTION_FUNCTION_CODE, 1);

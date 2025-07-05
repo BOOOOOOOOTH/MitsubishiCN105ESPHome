@@ -51,6 +51,9 @@ namespace esphome {
         void set_use_stage_for_operating_status(bool value);
         void set_use_fahrenheit_support_mode(bool value);
 
+        // Helper method to test ISEE direction function codes
+        void testISeeDirectionFunctionCode(int functionCode);
+
         void set_functions_sensor(esphome::text_sensor::TextSensor* Functions_sensor);
         void set_functions_get_button(FunctionsButton* Button);
         void set_functions_set_button(FunctionsButton* Button);

@@ -42,11 +42,13 @@ void CN105Climate::functionsArrived() {
     char* pos = states;
 
     heatpumpFunctionCodes codes = functions.getAllCodes();
+    ESP_LOGI(TAG, "Function codes received:");
     for (int i = 0; i < MAX_FUNCTION_CODE_COUNT; ++i) {
         if (codes.valid[i]) {
             int code = codes.code[i];
             int value = functions.getValue(code);
             if (value > 0) {  // only values 1, 2, 3 are valid -- 0 values mean something the device does not support
+                ESP_LOGI(TAG, "  Code %i: Value %i", code, value);
                 int written = snprintf(pos, remaining, "%i: %i ", code, value);
                 if (written < 0 || static_cast<size_t>(written) >= remaining) {
                     // Buffer full or error
