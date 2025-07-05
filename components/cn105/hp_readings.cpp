@@ -276,6 +276,22 @@ void CN105Climate::getSettingsFromResponsePacket() {
         this->wideVaneAdj = (data[10] & 0x80) == 0x80 ? true : false;        
         ESP_LOGI("Decoder", "[wideVane: %s (adj:%d)] raw byte: 0x%02X, bit7: %s", 
                  receivedSettings.wideVane, this->wideVaneAdj, data[10], this->wideVaneAdj ? "set" : "clear");
+        
+        // Additional debugging for DIRECT vs INDIRECT issue
+        if (strcmp(receivedSettings.wideVane, "INDIRECT") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
+            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Received wide vane byte 0x%02X -> mapped to '%s'", 
+                     data[10], receivedSettings.wideVane);
+            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Full packet data[10]: 0x%02X, bit7: %s, low nibble: 0x%01X", 
+                     data[10], this->wideVaneAdj ? "set" : "clear", data[10] & 0x0F);
+            
+            // Log the full packet to see if there are other bytes that might distinguish DIRECT vs INDIRECT
+            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Full packet for analysis:");
+            this->hpPacketDebug(data, 22, "DIRECT_INDIRECT_FULL");
+            
+            // Check if there might be a different byte controlling DIRECT vs INDIRECT
+            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Checking other bytes - data[7]: 0x%02X, data[8]: 0x%02X, data[9]: 0x%02X, data[11]: 0x%02X", 
+                     data[7], data[8], data[9], data[11]);
+        }
     } else {
         ESP_LOGD("Decoder", "widevane is not supported");
     }
