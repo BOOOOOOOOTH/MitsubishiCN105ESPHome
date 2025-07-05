@@ -263,63 +263,16 @@ void CN105Climate::getSettingsFromResponsePacket() {
             }
         }
         
-        // Log all wide vane values received for debugging
-        ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: RECEIVED WIDEVANE VALUE: 0x%02X (decimal: %d) -> %s", widevane_value, widevane_value, found ? "KNOWN" : "UNKNOWN");
-        
-        // Log all wide vane values for debugging (only once)
-        if (!discovery_logged) {
-            ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: Current known WIDEVANE values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
-            discovery_logged = true;
-        }
+
         
         receivedSettings.wideVane = lookupByteMapValue(WIDEVANE_MAP, WIDEVANE, 11, data[10], "wideVane reading");
         this->wideVaneAdj = (data[10] & 0x80) == 0x80 ? true : false;        
         ESP_LOGI("Decoder", "[wideVane: %s (adj:%d)] raw byte: 0x%02X, bit7: %s", 
                  receivedSettings.wideVane, this->wideVaneAdj, data[10], this->wideVaneAdj ? "set" : "clear");
         
-        // Additional debugging for DIRECT vs INDIRECT issue
-        if (strcmp(receivedSettings.wideVane, "DIRECTIONAL") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
-            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Received wide vane byte 0x%02X -> mapped to '%s'", 
-                     data[10], receivedSettings.wideVane);
-            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Full packet data[10]: 0x%02X, bit7: %s, low nibble: 0x%01X", 
-                     data[10], this->wideVaneAdj ? "set" : "clear", data[10] & 0x0F);
-            
-            // Log the full packet to see if there are other bytes that might distinguish DIRECT vs INDIRECT
-            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Full packet for analysis:");
-            this->hpPacketDebug(data, 22, "DIRECT_INDIRECT_FULL");
-            
-            // Check if there might be a different byte controlling DIRECT vs INDIRECT
-            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: Checking other bytes - data[7]: 0x%02X, data[8]: 0x%02X, data[9]: 0x%02X, data[11]: 0x%02X", 
-                     data[7], data[8], data[9], data[11]);
-            
-            // Check if data[11] might be the key - it's consistently 0xB2 in the logs
-            ESP_LOGI(TAG, "DIRECT_INDIRECT_DEBUG: data[11] analysis - value: 0x%02X, bits: %d%d%d%d%d%d%d%d", 
-                     data[11], 
-                     (data[11] & 0x80) ? 1 : 0, (data[11] & 0x40) ? 1 : 0, (data[11] & 0x20) ? 1 : 0, (data[11] & 0x10) ? 1 : 0,
-                     (data[11] & 0x08) ? 1 : 0, (data[11] & 0x04) ? 1 : 0, (data[11] & 0x02) ? 1 : 0, (data[11] & 0x01) ? 1 : 0);
-        }
+
         
-        // Enhanced discovery logging for all wide vane values
-        ESP_LOGI(TAG, "WIDEVANE_PROTOCOL_DISCOVERY: Received wide vane value 0x%02X -> mapped to '%s'", 
-                 data[10], receivedSettings.wideVane);
-        ESP_LOGI(TAG, "WIDEVANE_PROTOCOL_DISCOVERY: Full packet bytes 7-11: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
-                 data[7], data[8], data[9], data[10], data[11]);
-        
-        // Additional analysis for indirect/direct vs wide vane positions
-        if (strcmp(receivedSettings.wideVane, "DIRECTIONAL") == 0 || strcmp(receivedSettings.wideVane, "DIRECT") == 0) {
-            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: This appears to be a DIRECTIONAL/DIRECT mode setting");
-            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: data[10] = 0x%02X, bit7 = %s", 
-                     data[10], this->wideVaneAdj ? "set" : "clear");
-            ESP_LOGI(TAG, "INDIRECT_DIRECT_ANALYSIS: This might be an override of the normal wide vane position");
-        } else {
-            ESP_LOGI(TAG, "WIDEVANE_POSITION_ANALYSIS: This appears to be a wide vane position setting");
-            ESP_LOGI(TAG, "WIDEVANE_POSITION_ANALYSIS: data[10] = 0x%02X, bit7 = %s", 
-                     data[10], this->wideVaneAdj ? "set" : "clear");
-        }
-        
-        // Protocol discovery: We need to understand what distinguishes DIRECT from INDIRECT
-        // Currently we see 0x80 for INDIRECT, but we don't know what value represents DIRECT
-        // The distinction might be in other bytes or different bit patterns
+
     } else {
         ESP_LOGD("Decoder", "widevane is not supported");
     }
@@ -429,11 +382,6 @@ void CN105Climate::terminateCycle() {
 }
 void CN105Climate::getDataFromResponsePacket() {
 
-    // Enhanced packet discovery logging
-    ESP_LOGI(TAG, "PACKET_DISCOVERY: Received packet type 0x%02X (decimal: %d)", data[0], data[0]);
-    ESP_LOGI(TAG, "PACKET_DISCOVERY: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
-             data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
-
     switch (this->data[0]) {
     case 0x02:             /* setting information */
         ESP_LOGD(LOG_CYCLE_TAG, "2b: Receiving settings response");
@@ -455,18 +403,12 @@ void CN105Climate::getDataFromResponsePacket() {
     case 0x04:
         /* unknown */
         ESP_LOGI("Decoder", "[0x04 is unknown : not implemented]");
-        ESP_LOGI(TAG, "PACKET_0x04_ANALYSIS: Unknown packet type 0x04 received - might contain DIRECT/INDIRECT distinction");
-        ESP_LOGI(TAG, "PACKET_0x04_ANALYSIS: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
-                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->last_received_packet_sensor->publish_state("0x62-> 0x04: Data -> Unknown");
         break;
 
     case 0x05:
         /* timer packet */
         ESP_LOGW("Decoder", "[0x05 is Timer : not implemented]");
-        ESP_LOGI(TAG, "PACKET_0x05_ANALYSIS: Timer packet type 0x05 received - might contain DIRECT/INDIRECT distinction");
-        ESP_LOGI(TAG, "PACKET_0x05_ANALYSIS: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
-                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->last_received_packet_sensor->publish_state("0x62-> 0x05: Data -> Timer Packet");
         break;
 
@@ -497,24 +439,14 @@ void CN105Climate::getDataFromResponsePacket() {
         // reset the powerRequestWithoutResponses to 0 as we had a response
         this->powerRequestWithoutResponses = 0;
 
-        // Request functions packets to check for DIRECT/INDIRECT distinction
+        // Request functions packets
         ESP_LOGD(LOG_CYCLE_TAG, "6a: Sending functions request (0x20)");
         this->getFunctions();
-        
-        // Request additional packet types that might contain DIRECT/INDIRECT distinction
-        ESP_LOGD(LOG_CYCLE_TAG, "7a: Sending additional packet requests (0x04, 0x05, 0x10)");
-        this->buildAndSendRequestPacket(2); // 0x04 - unknown
-        this->buildAndSendRequestPacket(3); // 0x05 - timers  
-        this->buildAndSendRequestPacket(4); // 0x10 - unknown
-
         this->terminateCycle();
         break;
 
     case 0x10:
         ESP_LOGD("Decoder", "[0x10 is Unknown : not implemented]");
-        ESP_LOGI(TAG, "PACKET_0x10_ANALYSIS: Unknown packet type 0x10 received - might contain DIRECT/INDIRECT distinction");
-        ESP_LOGI(TAG, "PACKET_0x10_ANALYSIS: Full packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
-                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->getAutoModeStateFromResponsePacket();
         break;
 
@@ -526,24 +458,10 @@ void CN105Climate::getDataFromResponsePacket() {
             if (data[0] == 0x20) {
                 functions.setData1(&data[1]);
                 ESP_LOGI(LOG_CYCLE_TAG, "Got functions packet 1, requesting part 2");
-                
-                // Enhanced logging for DIRECT/INDIRECT discovery
-                ESP_LOGI(TAG, "FUNCTIONS_PACKET_1: Received functions packet 1 - data[1-15]:");
-                for (int i = 1; i <= 15; i++) {
-                    ESP_LOGI(TAG, "FUNCTIONS_PACKET_1: data[%d]: 0x%02X (decimal: %d)", i, data[i], data[i]);
-                }
-                
                 this->getFunctionsPart2();
             } else {
                 functions.setData2(&data[1]);
                 ESP_LOGI(LOG_CYCLE_TAG, "Got functions packet 2");
-                
-                // Enhanced logging for DIRECT/INDIRECT discovery
-                ESP_LOGI(TAG, "FUNCTIONS_PACKET_2: Received functions packet 2 - data[1-15]:");
-                for (int i = 1; i <= 15; i++) {
-                    ESP_LOGI(TAG, "FUNCTIONS_PACKET_2: data[%d]: 0x%02X (decimal: %d)", i, data[i], data[i]);
-                }
-                
                 this->functionsArrived();
                 
                 // Terminate cycle after receiving both functions packets
@@ -556,10 +474,6 @@ void CN105Climate::getDataFromResponsePacket() {
 
     default:
         ESP_LOGW("Decoder", "packet type [%02X] <-- unknown and unexpected", data[0]);
-        ESP_LOGI(TAG, "UNKNOWN_PACKET_ANALYSIS: Unknown packet type 0x%02X received", data[0]);
-        ESP_LOGI(TAG, "UNKNOWN_PACKET_ANALYSIS: This might contain DIRECT/INDIRECT distinction data");
-        ESP_LOGI(TAG, "UNKNOWN_PACKET_ANALYSIS: Full unknown packet data[0-15]: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
-                 data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8], data[9], data[10], data[11], data[12], data[13], data[14], data[15]);
         //this->last_received_packet_sensor->publish_state("0x62-> ?? : Data -> Unknown");
         break;
     }
@@ -723,7 +637,7 @@ void CN105Climate::checkWideVaneSettings(heatpumpSettings& settings, bool update
 
     /* ******** HANDLE MITSUBISHI VANE CHANGES ********
      * VANE_MAP[7]        = {"AUTO", "1", "2", "3", "4", "5", "SWING"};
-     * WIDEVANE_MAP[11]   = { "<<", "<",  "|",  ">",  ">>", "<>", "SWING", "INDIRECT", "DIRECT", "EVEN", "OFF" }
+     * WIDEVANE_MAP[11]   = { "<<", "<",  "|",  ">",  ">>", "<>", "SWING", "iSee Directional", "DIRECT", "EVEN", "OFF" }
      */
 
     if (this->hasChanged(currentSettings.wideVane, settings.wideVane, "wideVane")) {    // widevane setting change ?
