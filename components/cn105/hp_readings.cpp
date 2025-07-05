@@ -259,13 +259,13 @@ void CN105Climate::getSettingsFromResponsePacket() {
         if (!discovered_widevane_values[widevane_value]) {
             discovered_widevane_values[widevane_value] = true;
             if (!found) {
-                ESP_LOGI("WIDEVANE_DISCOVERY", "NEW WIDEVANE VALUE DISCOVERED: 0x%02X (decimal: %d)", widevane_value, widevane_value);
+                ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: NEW WIDEVANE VALUE DISCOVERED: 0x%02X (decimal: %d)", widevane_value, widevane_value);
             }
         }
         
         // Log all wide vane values for debugging
         if (!discovery_logged) {
-            ESP_LOGI("WIDEVANE_DISCOVERY", "Current known WIDEVANE values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
+            ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: Current known WIDEVANE values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
             discovery_logged = true;
         }
         

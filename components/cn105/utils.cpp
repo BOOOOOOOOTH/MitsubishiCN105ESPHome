@@ -19,9 +19,9 @@ void esphome::log_debug_uint32(const char* tag, const char* msg, uint32_t value,
 }
 
 void CN105Climate::dump_discovered_widevane_values() {
-    ESP_LOGI("WIDEVANE_DISCOVERY", "=== DISCOVERED WIDEVANE VALUES SUMMARY ===");
-    ESP_LOGI("WIDEVANE_DISCOVERY", "Known values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
-    ESP_LOGI("WIDEVANE_DISCOVERY", "Newly discovered values:");
+    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: === DISCOVERED WIDEVANE VALUES SUMMARY ===");
+    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: Known values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
+    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: Newly discovered values:");
     
     bool found_new = false;
     for (int i = 0; i < 256; i++) {
@@ -35,16 +35,16 @@ void CN105Climate::dump_discovered_widevane_values() {
                 }
             }
             if (!is_known) {
-                ESP_LOGI("WIDEVANE_DISCOVERY", "  0x%02X (decimal: %d)", i, i);
+                ESP_LOGI(TAG, "WIDEVANE_DISCOVERY:   0x%02X (decimal: %d)", i, i);
                 found_new = true;
             }
         }
     }
     
     if (!found_new) {
-        ESP_LOGI("WIDEVANE_DISCOVERY", "  No new values discovered yet");
+        ESP_LOGI(TAG, "WIDEVANE_DISCOVERY:   No new values discovered yet");
     }
-    ESP_LOGI("WIDEVANE_DISCOVERY", "==========================================");
+    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: ==========================================");
 }
 
 bool CN105Climate::hasChanged(const char* before, const char* now, const char* field, bool checkNotNull) {
