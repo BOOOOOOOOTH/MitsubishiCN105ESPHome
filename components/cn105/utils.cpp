@@ -1,9 +1,6 @@
 #include "cn105.h"
 #include "Globals.h"
 
-// Static array to track discovered wide vane values for reverse engineering
-bool discovered_widevane_values[256] = {}; // Track all possible byte values
-
 using namespace esphome;
 
 void esphome::log_info_uint32(const char* tag, const char* msg, uint32_t value, const char* suffix) {
@@ -21,39 +18,7 @@ void esphome::log_debug_uint32(const char* tag, const char* msg, uint32_t value,
 #endif
 }
 
-void CN105Climate::dump_discovered_widevane_values() {
-    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: === DISCOVERED WIDEVANE VALUES SUMMARY ===");
-    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: Known values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
-    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: Newly discovered values:");
-    
-    bool found_new = false;
-    for (int i = 0; i < 256; i++) {
-        if (discovered_widevane_values[i]) {
-            // Check if this is a known value
-            bool is_known = false;
-            for (int j = 0; j < 11; j++) {
-                if (WIDEVANE[j] == i) {
-                    is_known = true;
-                    break;
-                }
-            }
-            if (!is_known) {
-                ESP_LOGI(TAG, "WIDEVANE_DISCOVERY:   0x%02X (decimal: %d)", i, i);
-                found_new = true;
-            }
-        }
-    }
-    
-    if (!found_new) {
-        ESP_LOGI(TAG, "WIDEVANE_DISCOVERY:   No new values discovered yet");
-    }
-    ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: ==========================================");
-}
-
 bool CN105Climate::hasChanged(const char* before, const char* now, const char* field, bool checkNotNull) {
-    ESP_LOGI(TAG, "HASCHANGED_DEBUG: Comparing %s - before: '%s', now: '%s'", 
-             field, before ? before : "NULL", now ? now : "NULL");
-    
     if (now == NULL) {
         if (checkNotNull) {
             ESP_LOGE(TAG, "CAUTION: expected value in hasChanged() function for %s, got NULL", field);
@@ -62,10 +27,7 @@ bool CN105Climate::hasChanged(const char* before, const char* now, const char* f
         }
         return false;
     }
-    
-    bool changed = ((before == NULL) || (strcmp(before, now) != 0));
-    ESP_LOGI(TAG, "HASCHANGED_DEBUG: %s hasChanged result: %s", field, changed ? "YES" : "NO");
-    return changed;
+    return ((before == NULL) || (strcmp(before, now) != 0));
 }
 
 

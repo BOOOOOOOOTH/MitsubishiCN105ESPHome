@@ -2,10 +2,6 @@
 
 #include <map>
 
-// Static array to track discovered wide vane values for reverse engineering
-static bool discovered_widevane_values[256] = {false}; // Track all possible byte values
-static bool discovery_logged = false;
-
 using namespace esphome;
 
 /**
@@ -243,36 +239,9 @@ void CN105Climate::getSettingsFromResponsePacket() {
     ESP_LOGD("Decoder", "[Vane: %s]", receivedSettings.vane);
 
     if ((data[10] != 0) && (this->traits_.supports_swing_mode(climate::CLIMATE_SWING_HORIZONTAL))) {    // wideVane is not always supported
-        // Dynamic discovery: track all wide vane values for reverse engineering
-        uint8_t widevane_value = data[10];
-        
-        // Check if this is a known value
-        bool found = false;
-        for (int i = 0; i < 11; i++) {
-            if (WIDEVANE[i] == widevane_value) {
-                found = true;
-                break;
-            }
-        }
-        
-        // Track new values
-        if (!discovered_widevane_values[widevane_value]) {
-            discovered_widevane_values[widevane_value] = true;
-            if (!found) {
-                ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: NEW WIDEVANE VALUE DISCOVERED: 0x%02X (decimal: %d)", widevane_value, widevane_value);
-            }
-        }
-        
-
-        
         receivedSettings.wideVane = lookupByteMapValue(WIDEVANE_MAP, WIDEVANE, 11, data[10], "wideVane reading");
-        this->wideVaneAdj = (data[10] & 0x80) == 0x80 ? true : false;        
-        ESP_LOGI("Decoder", "[wideVane: %s (adj:%d)] raw byte: 0x%02X, bit7: %s", 
-                 receivedSettings.wideVane, this->wideVaneAdj, data[10], this->wideVaneAdj ? "set" : "clear");
-        
-
-        
-
+        this->wideVaneAdj = (data[10] & 0xF0) == 0x80 ? true : false;        
+        ESP_LOGD("Decoder", "[wideVane: %s (adj:%d)]", receivedSettings.wideVane, this->wideVaneAdj);
     } else {
         ESP_LOGD("Decoder", "widevane is not supported");
     }
@@ -439,9 +408,6 @@ void CN105Climate::getDataFromResponsePacket() {
         // reset the powerRequestWithoutResponses to 0 as we had a response
         this->powerRequestWithoutResponses = 0;
 
-        // Request functions packets
-        ESP_LOGD(LOG_CYCLE_TAG, "6a: Sending functions request (0x20)");
-        this->getFunctions();
         this->terminateCycle();
         break;
 
@@ -463,10 +429,6 @@ void CN105Climate::getDataFromResponsePacket() {
                 functions.setData2(&data[1]);
                 ESP_LOGI(LOG_CYCLE_TAG, "Got functions packet 2");
                 this->functionsArrived();
-                
-                // Terminate cycle after receiving both functions packets
-                ESP_LOGD(LOG_CYCLE_TAG, "6b: Functions packets received, terminating cycle");
-                this->terminateCycle();
             }
         }
     }
@@ -637,7 +599,7 @@ void CN105Climate::checkWideVaneSettings(heatpumpSettings& settings, bool update
 
     /* ******** HANDLE MITSUBISHI VANE CHANGES ********
      * VANE_MAP[7]        = {"AUTO", "1", "2", "3", "4", "5", "SWING"};
-     * WIDEVANE_MAP[11]   = { "<<", "<",  "|",  ">",  ">>", "<>", "SWING", "iSee Directional", "DIRECT", "EVEN", "OFF" }
+     * WIDEVANE_MAP[11]   = { "<<", "<",  "|",  ">",  ">>", "<>", "SWING", "INDIRECT", "DIRECT", "EVEN", "OFF" }
      */
 
     if (this->hasChanged(currentSettings.wideVane, settings.wideVane, "wideVane")) {    // widevane setting change ?
@@ -680,17 +642,10 @@ void CN105Climate::updateExtraSelectComponents(heatpumpSettings& settings) {
         }
     }
     if (this->horizontal_vane_select_ != nullptr) {
-        ESP_LOGI(TAG, "UI_UPDATE_DEBUG: Checking wide vane UI update - current UI state: '%s', new setting: '%s'", 
-                 this->horizontal_vane_select_->state.c_str(), settings.wideVane ? settings.wideVane : "NULL");
         if (this->hasChanged(this->horizontal_vane_select_->state.c_str(), settings.wideVane, "select wideVane")) {
-            ESP_LOGI(TAG, "widevane setting (extra select component) changed - updating UI from '%s' to '%s'", 
-                     this->horizontal_vane_select_->state.c_str(), settings.wideVane);
+            ESP_LOGI(TAG, "widevane setting (extra select component) changed");
             this->horizontal_vane_select_->publish_state(settings.wideVane);
-        } else {
-            ESP_LOGI(TAG, "UI_UPDATE_DEBUG: No UI update needed - states match");
         }
-    } else {
-        ESP_LOGI(TAG, "UI_UPDATE_DEBUG: horizontal_vane_select_ is null - no UI component to update");
     }
 }
 void CN105Climate::checkFanSettings(heatpumpSettings& settings, bool updateCurrentSettings) {

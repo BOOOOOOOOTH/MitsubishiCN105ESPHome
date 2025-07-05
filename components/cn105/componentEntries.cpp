@@ -33,7 +33,6 @@ void CN105Climate::setup() {
 
     this->setupUART();
     this->sendFirstConnectionPacket();
-    
 }
 
 

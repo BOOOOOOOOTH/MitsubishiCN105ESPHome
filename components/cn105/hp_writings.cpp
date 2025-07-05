@@ -194,13 +194,8 @@ void CN105Climate::createPacket(uint8_t* packet) {
 
     if (this->wantedSettings.wideVane != nullptr) {
         ESP_LOGD(TAG, "heatpump widevane -> %s", getWideVaneSetting());
-        uint8_t base_widevane = WIDEVANE[lookupByteMapIndex(WIDEVANE_MAP, 11, getWideVaneSetting(), "wideVane (write)")];
-        uint8_t widevane_byte = base_widevane | (this->wideVaneAdj ? 0x80 : 0x00);
-        packet[18] = widevane_byte;
-        ESP_LOGI(TAG, "WIDEVANE_COMMAND: Sending wide vane command: %s -> base: 0x%02X, adj: %s, final: 0x%02X (decimal: %d)", 
-                 getWideVaneSetting(), base_widevane, this->wideVaneAdj ? "true" : "false", widevane_byte, widevane_byte);
+        packet[18] = WIDEVANE[lookupByteMapIndex(WIDEVANE_MAP, 11, getWideVaneSetting(), "wideVane (write)")] | (this->wideVaneAdj ? 0x80 : 0x00);
         packet[7] += CONTROL_PACKET_2[0];
-        ESP_LOGI(TAG, "WIDEVANE_COMMAND: packet[7] after adding CONTROL_PACKET_2[0]: 0x%02X", packet[7]);
     }
 
 
@@ -257,8 +252,6 @@ void CN105Climate::sendWantedSettingsDelegate() {
     this->createPacket(packet);
     this->writePacket(packet, PACKET_LEN);
     this->hpPacketDebug(packet, 22, "WRITE_SETTINGS");
-    ESP_LOGI(TAG, "WIDEVANE_DEBUG: Full packet sent for wide vane change:");
-    this->hpPacketDebug(packet, 22, "WIDEVANE_FULL");
 
     this->publishWantedSettingsStateToHA();
 
