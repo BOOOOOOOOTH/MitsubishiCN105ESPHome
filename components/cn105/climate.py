@@ -113,6 +113,7 @@ SubModSensor = cg.global_ns.class_("SubModSensor", text_sensor.TextSensor, cg.Co
 AutoSubModSensor = cg.global_ns.class_(
     "AutoSubModSensor", text_sensor.TextSensor, cg.Component
 )
+DiscoveryDumpButton = cg.global_ns.class_("DiscoveryDumpButton", button.Button, cg.Component)
 uptime_ns = cg.esphome_ns.namespace("esphome").namespace("uptime")
 HpUpTimeConnectionSensor = uptime_ns.class_(
     "HpUpTimeConnectionSensor", sensor.Sensor, cg.PollingComponent
@@ -397,7 +398,9 @@ def to_code(config):
 
     if "discovery_dump_button" in config:
         conf = config["discovery_dump_button"]
-        button_var = yield button.new_button(conf)
+        button_var = yield cg.new_Pvariable(conf[CONF_ID], DiscoveryDumpButton())
+        yield cg.register_component(button_var, conf)
+        yield button.register_button(button_var, conf)
         cg.add(button_var.add_press_action(cg.RawExpression(f"{var}->dump_discovered_widevane_values()")))
 
     # --- TRAITEMENT POUR STAGE_SENSOR AVEC LA NOUVELLE OPTION ---
