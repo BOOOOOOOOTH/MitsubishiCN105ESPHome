@@ -2,6 +2,10 @@
 
 #include <map>
 
+// Static array to track discovered wide vane values for reverse engineering
+static bool discovered_widevane_values[256] = {false}; // Track all possible byte values
+static bool discovery_logged = false;
+
 using namespace esphome;
 
 /**
@@ -239,6 +243,32 @@ void CN105Climate::getSettingsFromResponsePacket() {
     ESP_LOGD("Decoder", "[Vane: %s]", receivedSettings.vane);
 
     if ((data[10] != 0) && (this->traits_.supports_swing_mode(climate::CLIMATE_SWING_HORIZONTAL))) {    // wideVane is not always supported
+        // Dynamic discovery: track all wide vane values for reverse engineering
+        uint8_t widevane_value = data[10];
+        
+        // Check if this is a known value
+        bool found = false;
+        for (int i = 0; i < 11; i++) {
+            if (WIDEVANE[i] == widevane_value) {
+                found = true;
+                break;
+            }
+        }
+        
+        // Track new values
+        if (!discovered_widevane_values[widevane_value]) {
+            discovered_widevane_values[widevane_value] = true;
+            if (!found) {
+                ESP_LOGI("WIDEVANE_DISCOVERY", "NEW WIDEVANE VALUE DISCOVERED: 0x%02X (decimal: %d)", widevane_value, widevane_value);
+            }
+        }
+        
+        // Log all wide vane values for debugging
+        if (!discovery_logged) {
+            ESP_LOGI("WIDEVANE_DISCOVERY", "Current known WIDEVANE values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
+            discovery_logged = true;
+        }
+        
         receivedSettings.wideVane = lookupByteMapValue(WIDEVANE_MAP, WIDEVANE, 11, data[10], "wideVane reading");
         this->wideVaneAdj = (data[10] & 0xF0) == 0x80 ? true : false;        
         ESP_LOGD("Decoder", "[wideVane: %s (adj:%d)]", receivedSettings.wideVane, this->wideVaneAdj);

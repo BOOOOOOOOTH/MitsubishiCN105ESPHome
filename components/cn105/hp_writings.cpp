@@ -194,7 +194,9 @@ void CN105Climate::createPacket(uint8_t* packet) {
 
     if (this->wantedSettings.wideVane != nullptr) {
         ESP_LOGD(TAG, "heatpump widevane -> %s", getWideVaneSetting());
-        packet[18] = WIDEVANE[lookupByteMapIndex(WIDEVANE_MAP, 11, getWideVaneSetting(), "wideVane (write)")] | (this->wideVaneAdj ? 0x80 : 0x00);
+        uint8_t widevane_byte = WIDEVANE[lookupByteMapIndex(WIDEVANE_MAP, 11, getWideVaneSetting(), "wideVane (write)")] | (this->wideVaneAdj ? 0x80 : 0x00);
+        packet[18] = widevane_byte;
+        ESP_LOGI("WIDEVANE_COMMAND", "Sending wide vane command: %s -> 0x%02X (decimal: %d)", getWideVaneSetting(), widevane_byte, widevane_byte);
         packet[7] += CONTROL_PACKET_2[0];
     }
 
