@@ -2,7 +2,7 @@
 #include "Globals.h"
 
 // Static array to track discovered wide vane values for reverse engineering
-extern bool discovered_widevane_values[256]; // Track all possible byte values
+bool discovered_widevane_values[256] = {}; // Track all possible byte values
 
 using namespace esphome;
 
