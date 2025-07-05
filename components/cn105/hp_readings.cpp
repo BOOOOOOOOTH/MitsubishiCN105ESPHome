@@ -298,6 +298,16 @@ void CN105Climate::getSettingsFromResponsePacket() {
                      (data[11] & 0x80) ? 1 : 0, (data[11] & 0x40) ? 1 : 0, (data[11] & 0x20) ? 1 : 0, (data[11] & 0x10) ? 1 : 0,
                      (data[11] & 0x08) ? 1 : 0, (data[11] & 0x04) ? 1 : 0, (data[11] & 0x02) ? 1 : 0, (data[11] & 0x01) ? 1 : 0);
         }
+        
+        // Enhanced discovery logging for all wide vane values
+        ESP_LOGI(TAG, "WIDEVANE_PROTOCOL_DISCOVERY: Received wide vane value 0x%02X -> mapped to '%s'", 
+                 data[10], receivedSettings.wideVane);
+        ESP_LOGI(TAG, "WIDEVANE_PROTOCOL_DISCOVERY: Full packet bytes 7-11: [0x%02X] [0x%02X] [0x%02X] [0x%02X] [0x%02X]", 
+                 data[7], data[8], data[9], data[10], data[11]);
+        
+        // Protocol discovery: We need to understand what distinguishes DIRECT from INDIRECT
+        // Currently we see 0x80 for INDIRECT, but we don't know what value represents DIRECT
+        // The distinction might be in other bytes or different bit patterns
     } else {
         ESP_LOGD("Decoder", "widevane is not supported");
     }
