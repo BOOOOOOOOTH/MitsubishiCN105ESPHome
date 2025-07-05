@@ -250,6 +250,7 @@ CONFIG_SCHEMA = climate.climate_schema(CN105Climate).extend(
             cv.GenerateID(): cv.declare_id(button.Button),
             cv.Required(CONF_NAME): cv.string,
             cv.Optional(CONF_ICON, default="mdi:bug"): cv.icon,
+            cv.Optional("disabled_by_default", default=False): cv.boolean,
         }),
         cv.Optional(CONF_SUPPORTS, default={}): cv.Schema(
             {
