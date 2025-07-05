@@ -263,7 +263,10 @@ void CN105Climate::getSettingsFromResponsePacket() {
             }
         }
         
-        // Log all wide vane values for debugging
+        // Log all wide vane values received for debugging
+        ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: RECEIVED WIDEVANE VALUE: 0x%02X (decimal: %d) -> %s", widevane_value, widevane_value, found ? "KNOWN" : "UNKNOWN");
+        
+        // Log all wide vane values for debugging (only once)
         if (!discovery_logged) {
             ESP_LOGI(TAG, "WIDEVANE_DISCOVERY: Current known WIDEVANE values: 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0C, 0x80, 0x81, 0x28, 0x8C");
             discovery_logged = true;
