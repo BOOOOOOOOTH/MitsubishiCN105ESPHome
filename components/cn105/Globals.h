@@ -22,12 +22,18 @@ static const char* LOG_SETTINGS_TAG = "SETTINGS";   // Logging settings changes
 static const char* LOG_STATUS_TAG = "STATUS";       // Logging status changes
 static const char* LOG_CYCLE_TAG = "CYCLE";         // loop cycles logs
 static const char* LOG_UPD_INT_TAG = "UPDT_ITVL";   // update interval logging
-
-
+static const char* LOG_SET_RUN_STATE = "SET_RUN_STATE";
+static const char* LOG_OPERATING_STATUS_TAG = "OPERATING_STATUS"; // Logging tag
+static const char* LOG_TEMP_SENSOR_TAG = "TEMP_SENSOR"; // Logging tag
+static const char* LOG_DUAL_SP_TAG = "DUAL_SP"; // Logging tag
 static const char* SHEDULER_REMOTE_TEMP_TIMEOUT = "->remote_temp_timeout";
 
 // defering delay for update_interval when we've just sent a wentedSettings
 static const int DEFER_SCHEDULE_UPDATE_LOOP_DELAY = 750;
+// Fenêtre de grâce (ms) après envoi d'une consigne pour ignorer une consigne entrante
+static const uint32_t RECEIVED_SETPOINT_GRACE_WINDOW_MS = 3000;
+// Anti-rebond UI entre deux mises à jour successives low/high
+static const uint32_t UI_SETPOINT_ANTIREBOUND_MS = 600;
 
 static const int PACKET_LEN = 22;
 static const int PACKET_TYPE_DEFAULT = 99;
@@ -40,16 +46,15 @@ static const uint8_t HEADER[HEADER_LEN] = { 0xfc, 0x41, 0x01, 0x30, 0x10, 0x01, 
 static const int INFOHEADER_LEN = 5;
 static const uint8_t INFOHEADER[INFOHEADER_LEN] = { 0xfc, 0x42, 0x01, 0x30, 0x10 };
 
+static const int RQST_PKT_SETTINGS = 0;
+static const int RQST_PKT_ROOM_TEMP = 1;
+static const int RQST_PKT_TIMERS = 3;
+static const int RQST_PKT_STATUS = 4;
+static const int RQST_PKT_STANDBY = 5;
+static const int RQST_PKT_UNKNOWN = 2;
+static const int RQST_PKT_HVAC_OPTIONS = 6;
 
-static const int INFOMODE_LEN = 6;
-static const uint8_t INFOMODE[INFOMODE_LEN] = {
-  0x02, // request a settings packet - RQST_PKT_SETTINGS
-  0x03, // request the current room temp - RQST_PKT_ROOM_TEMP
-  0x04, // unknown
-  0x05, // request the timers - RQST_PKT_TIMERS
-  0x06, // request status - RQST_PKT_STATUS
-  0x09  // request standby mode (maybe?) RQST_PKT_STANDBY
-};
+// Deprecated: INFOMODE and its rotation are no longer used. Requests now set code directly in packet[5].
 
 static const int RCVD_PKT_NONE = -1;
 static const int RCVD_PKT_FAIL = 0;
@@ -68,6 +73,8 @@ static const uint8_t CONTROL_PACKET_1[5] = { 0x01,    0x02,  0x04,  0x08, 0x10 }
 //{"POWER","MODE","TEMP","FAN","VANE"};
 static const uint8_t CONTROL_PACKET_2[1] = { 0x01 };
 //{"WIDEVANE"};
+static const uint8_t RUN_STATE_PACKET_1[5] = { 0x01, 0x04, 0x08, 0x10, 0x20 };
+static const uint8_t RUN_STATE_PACKET_2[5] = { 0x02, 0x04, 0x08, 0x10, 0x20 };
 static const uint8_t POWER[2] = { 0x00, 0x01 };
 static const char* POWER_MAP[2] = { "OFF", "ON" };
 static const uint8_t MODE[5] = { 0x01,   0x02,  0x03, 0x07, 0x08 };
@@ -78,14 +85,17 @@ static const uint8_t FAN[6] = { 0x00,  0x01,   0x02, 0x03, 0x05, 0x06 };
 static const char* FAN_MAP[6] = { "AUTO", "QUIET", "1", "2", "3", "4" };
 static const uint8_t VANE[7] = { 0x00,  0x01, 0x02, 0x03, 0x04, 0x05, 0x07 };
 static const char* VANE_MAP[7] = { "AUTO", "↑↑", "↑", "—", "↓", "↓↓", "SWING" };
-static const uint8_t WIDEVANE[8] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0c, 0x80 };
-static const char* WIDEVANE_MAP[8] = { "←←", "←", "|", "→", "→→", "←→", "SWING", "iSee Directional" };
+static const uint8_t WIDEVANE[8] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x08, 0x0c, 0x00 };
+static const char* WIDEVANE_MAP[8] = { "←←", "←", "|", "→", "→→", "←→", "SWING", "AIRFLOW CONTROL" };
 static const uint8_t ROOM_TEMP[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
                                   0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
 static const int ROOM_TEMP_MAP[32] = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
                                   26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41 };
 static const uint8_t TIMER_MODE[4] = { 0x00,  0x01,  0x02, 0x03 };
 static const char* TIMER_MODE_MAP[4] = { "NONE", "OFF", "ON", "BOTH" };
+
+static const uint8_t AIRFLOW_CONTROL[3] = { 0x00, 0x01, 0x02 };
+static const char* AIRFLOW_CONTROL_MAP[3] = { "EVEN", "INDIRECT", "DIRECT" };
 
 //added NET to work with additional data
 static const uint8_t STAGE[7] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
@@ -111,19 +121,7 @@ static const uint8_t FUNCTIONS_SET_PART2 = 0x21;
 static const uint8_t FUNCTIONS_GET_PART2 = 0x22;
 
 
-// Déclaration de la constante - pas de définition ici
-//extern const uint32_t ESPMHP_POLL_INTERVAL_DEFAULT;
-//extern const uint8_t ESPMHP_MIN_TEMPERATURE;
-//extern const uint8_t ESPMHP_MAX_TEMPERATURE;
-//extern const float ESPMHP_TEMPERATURE_STEP;
 
-
-static const int RQST_PKT_SETTINGS = 0;
-static const int RQST_PKT_ROOM_TEMP = 1;
-static const int RQST_PKT_TIMERS = 3;
-static const int RQST_PKT_STATUS = 4;
-static const int RQST_PKT_STANDBY = 5;
-static const int RQST_PKT_UNKNOWN = 2;
 
 const uint8_t ESPMHP_MIN_TEMPERATURE = 16; //16
 const uint8_t ESPMHP_MAX_TEMPERATURE = 26; //31
@@ -134,6 +132,9 @@ struct heatpumpSettings {
     const char* power;
     const char* mode;
     float temperature;
+    // Mémoire des consignes duales (interne au composant)
+    float dual_low_target;   // < 0 si inconnu
+    float dual_high_target;  // < 0 si inconnu
     const char* fan;
     const char* vane; //vertical vane, up/down
     const char* wideVane; //horizontal vane, left/right
@@ -148,6 +149,8 @@ struct heatpumpSettings {
         power = nullptr;
         mode = nullptr;
         temperature = -1.0f;
+        dual_low_target = -100.0f;
+        dual_high_target = -100.0f;
         fan = nullptr;
         vane = nullptr;
         wideVane = nullptr;
@@ -159,6 +162,8 @@ struct heatpumpSettings {
             power = other.power;
             mode = other.mode;
             temperature = other.temperature;
+            dual_low_target = other.dual_low_target;
+            dual_high_target = other.dual_high_target;
             fan = other.fan;
             vane = other.vane;
             wideVane = other.wideVane;
@@ -278,5 +283,69 @@ struct heatpumpStatus {
 
     bool operator!=(const heatpumpStatus& other) const {
         return !(*this == other);
+    }
+};
+
+struct heatpumpRunStates {
+    int8_t air_purifier;
+    int8_t night_mode;
+    int8_t circulator;
+    const char* airflow_control;
+
+    void resetSettings() {
+        air_purifier = -1;
+        night_mode = -1;
+        circulator = -1;
+        airflow_control = nullptr;
+    }
+
+    heatpumpRunStates& operator=(const heatpumpRunStates& other) {
+        if (this != &other) {
+            air_purifier = other.air_purifier;
+            night_mode = other.night_mode;
+            circulator = other.circulator;
+            airflow_control = other.airflow_control;
+        }
+        return *this;
+    }
+
+    bool operator==(const heatpumpRunStates& other) const {
+        return air_purifier == other.air_purifier &&
+            night_mode == other.night_mode &&
+            circulator == other.circulator &&
+            airflow_control == other.airflow_control;
+    }
+
+    bool operator!=(const heatpumpRunStates& other) {
+        return !(this->operator==(other));
+    }
+};
+
+struct wantedHeatpumpRunStates : heatpumpRunStates {
+    bool hasChanged;
+    bool hasBeenSent;
+    long lastChange;
+
+    void resetSettings() {
+        heatpumpRunStates::resetSettings();
+
+        hasChanged = false;
+        hasBeenSent = false;
+    }
+
+    wantedHeatpumpRunStates& operator=(const wantedHeatpumpRunStates& other) {
+        if (this != &other) {
+            heatpumpRunStates::operator=(other);
+            hasChanged = other.hasChanged;
+            hasBeenSent = other.hasBeenSent;
+        }
+        return *this;
+    }
+
+    wantedHeatpumpRunStates& operator=(const heatpumpRunStates& other) {
+        if (this != &other) {
+            heatpumpRunStates::operator=(other);
+        }
+        return *this;
     }
 };

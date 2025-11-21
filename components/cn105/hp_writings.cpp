@@ -30,8 +30,8 @@ void CN105Climate::sendFirstConnectionPacket() {
         this->set_timeout("checkFirstConnection", 10000, [this]() {
             if (!this->isHeatpumpConnected_) {
                 ESP_LOGE(TAG, "--> Heatpump did not reply: NOT CONNECTED <--");
-                ESP_LOGI(TAG, "Trying to connect again...");
-                this->sendFirstConnectionPacket();
+                ESP_LOGI(TAG, "Reinitializing UART and trying to connect again...");
+                this->reconnectUART();
             }});
 
     } else {
@@ -95,8 +95,27 @@ void CN105Climate::writePacket(uint8_t* packet, int length, bool checkIsActive) 
         ESP_LOGW(TAG, "could not write as asked, because UART is not connected");
         this->reconnectUART();
         ESP_LOGW(TAG, "delaying packet writing because we need to reconnect first...");
-        this->set_timeout("write", 4000, [this, packet, length]() { this->writePacket(packet, length); });
+        if (length > PACKET_LEN) {
+            ESP_LOGE(TAG, "Packet length %d exceeds PACKET_LEN %d, dropping.", length, PACKET_LEN);
+            return;
+        }
+        memcpy(this->pending_packet_, packet, static_cast<size_t>(length));
+        this->pending_packet_len_ = length;
+        this->pending_check_is_active_ = checkIsActive;
+        this->has_pending_packet_ = true;
+        this->set_timeout("write", 4000, [this]() { this->try_write_pending_packet(); });
     }
+}
+
+void CN105Climate::try_write_pending_packet() {
+    if (!this->has_pending_packet_) return;
+    if (!this->isUARTConnected_) {
+        this->reconnectUART();
+        this->set_timeout("write", 2000, [this]() { this->try_write_pending_packet(); });
+        return;
+    }
+    this->writePacket(this->pending_packet_, this->pending_packet_len_, this->pending_check_is_active_);
+    this->has_pending_packet_ = false;
 }
 
 const char* CN105Climate::getModeSetting() {
@@ -125,6 +144,9 @@ const char* CN105Climate::getVaneSetting() {
 
 const char* CN105Climate::getWideVaneSetting() {
     if (this->wantedSettings.wideVane) {
+        if (strcmp(this->wantedSettings.wideVane, lookupByteMapValue(WIDEVANE_MAP, WIDEVANE, 8, 0x80 & 0x0F)) == 0 && !this->currentSettings.iSee) {
+            this->wantedSettings.wideVane = this->currentSettings.wideVane;
+        }
         return this->wantedSettings.wideVane;
     } else {
         return this->currentSettings.wideVane;
@@ -154,7 +176,34 @@ float CN105Climate::getTemperatureSetting() {
         return this->currentSettings.temperature;
     }
 }
-
+const char* CN105Climate::getAirflowControlSetting() {
+    if (this->wantedRunStates.airflow_control) {
+        return this->wantedRunStates.airflow_control;
+    } else {
+        return this->currentRunStates.airflow_control;
+    }
+}
+bool CN105Climate::getAirPurifierRunState() {
+    if (this->wantedRunStates.air_purifier != this->currentRunStates.air_purifier) {
+        return this->wantedRunStates.air_purifier;
+    } else {
+        return this->currentRunStates.air_purifier;
+    }
+}
+bool CN105Climate::getNightModeRunState() {
+    if (this->wantedRunStates.night_mode != this->currentRunStates.night_mode) {
+        return this->wantedRunStates.night_mode;
+    } else {
+        return this->currentRunStates.night_mode;
+    }
+}
+bool CN105Climate::getCirculatorRunState() {
+    if (this->wantedRunStates.circulator != this->currentRunStates.circulator) {
+        return this->wantedRunStates.circulator;
+    } else {
+        return this->currentRunStates.circulator;
+    }
+}
 
 
 void CN105Climate::createPacket(uint8_t* packet) {
@@ -165,21 +214,21 @@ void CN105Climate::createPacket(uint8_t* packet) {
 
     if (this->wantedSettings.power != nullptr) {
         ESP_LOGD(TAG, "power -> %s", getPowerSetting());
-        packet[8] = POWER[lookupByteMapIndex(POWER_MAP, 2, getPowerSetting(), "power (write)")];
-        packet[6] += CONTROL_PACKET_1[0];
+        int idx = lookupByteMapIndex(POWER_MAP, 2, getPowerSetting(), "power (write)");
+        if (idx >= 0) { packet[8] = POWER[idx]; packet[6] += CONTROL_PACKET_1[0]; } else { ESP_LOGW(TAG, "Ignoring invalid power setting while building packet"); }
     }
 
     if (this->wantedSettings.mode != nullptr) {
         ESP_LOGD(TAG, "heatpump mode -> %s", getModeSetting());
-        packet[9] = MODE[lookupByteMapIndex(MODE_MAP, 5, getModeSetting(), "mode (write)")];
-        packet[6] += CONTROL_PACKET_1[1];
+        int idx = lookupByteMapIndex(MODE_MAP, 5, getModeSetting(), "mode (write)");
+        if (idx >= 0) { packet[9] = MODE[idx]; packet[6] += CONTROL_PACKET_1[1]; } else { ESP_LOGW(TAG, "Ignoring invalid mode setting while building packet"); }
     }
 
     if (wantedSettings.temperature != -1) {
         if (!tempMode) {
             ESP_LOGD(TAG, "temperature (tempmode is false) -> %f", getTemperatureSetting());
-            packet[10] = TEMP[lookupByteMapIndex(TEMP_MAP, 16, getTemperatureSetting(), "temperature (write)")];
-            packet[6] += CONTROL_PACKET_1[2];
+            int idx = lookupByteMapIndex(TEMP_MAP, 16, getTemperatureSetting(), "temperature (write)");
+            if (idx >= 0) { packet[10] = TEMP[idx]; packet[6] += CONTROL_PACKET_1[2]; } else { ESP_LOGW(TAG, "Ignoring invalid temperature setting while building packet"); }
         } else {
             ESP_LOGD(TAG, "temperature (tempmode is true) -> %f", getTemperatureSetting());
             float temp = (getTemperatureSetting() * 2) + 128;
@@ -190,20 +239,20 @@ void CN105Climate::createPacket(uint8_t* packet) {
 
     if (this->wantedSettings.fan != nullptr) {
         ESP_LOGD(TAG, "heatpump fan -> %s", getFanSpeedSetting());
-        packet[11] = FAN[lookupByteMapIndex(FAN_MAP, 6, getFanSpeedSetting(), "fan (write)")];
-        packet[6] += CONTROL_PACKET_1[3];
+        int idx = lookupByteMapIndex(FAN_MAP, 6, getFanSpeedSetting(), "fan (write)");
+        if (idx >= 0) { packet[11] = FAN[idx]; packet[6] += CONTROL_PACKET_1[3]; } else { ESP_LOGW(TAG, "Ignoring invalid fan setting while building packet"); }
     }
 
     if (this->wantedSettings.vane != nullptr) {
         ESP_LOGD(TAG, "heatpump vane -> %s", getVaneSetting());
-        packet[12] = VANE[lookupByteMapIndex(VANE_MAP, 7, getVaneSetting(), "vane (write)")];
-        packet[6] += CONTROL_PACKET_1[4];
+        int idx = lookupByteMapIndex(VANE_MAP, 7, getVaneSetting(), "vane (write)");
+        if (idx >= 0) { packet[12] = VANE[idx]; packet[6] += CONTROL_PACKET_1[4]; } else { ESP_LOGW(TAG, "Ignoring invalid vane setting while building packet"); }
     }
 
     if (this->wantedSettings.wideVane != nullptr) {
         ESP_LOGD(TAG, "heatpump widevane -> %s", getWideVaneSetting());
-        packet[18] = WIDEVANE[lookupByteMapIndex(WIDEVANE_MAP, 11, getWideVaneSetting(), "wideVane (write)")] | (this->wideVaneAdj ? 0x80 : 0x00);
-        packet[7] += CONTROL_PACKET_2[0];
+        int idx = lookupByteMapIndex(WIDEVANE_MAP, 8, getWideVaneSetting(), "wideVane (write)");
+        if (idx >= 0) { packet[18] = WIDEVANE[idx] | (this->wideVaneAdj ? 0x80 : 0x00); packet[7] += CONTROL_PACKET_2[0]; } else { ESP_LOGW(TAG, "Ignoring invalid wideVane setting while building packet"); }
     }
 
 
@@ -242,11 +291,50 @@ void CN105Climate::publishWantedSettingsStateToHA() {
     }
 
     // HA Temp
-    this->target_temperature = this->getTemperatureSetting();
+    this->updateTargetTemperaturesFromSettings(this->getTemperatureSetting());
 
     // publish to HA
     this->publish_state();
 
+}
+
+void CN105Climate::publishWantedRunStatesStateToHA() {
+    if (this->wantedRunStates.airflow_control != nullptr) {
+        if (this->wantedRunStates.airflow_control == nullptr) {
+            this->wantedRunStates.airflow_control = this->currentRunStates.airflow_control;
+        }
+        if (this->hasChanged(this->airflow_control_select_->current_option(), this->wantedRunStates.airflow_control, "select airflow control")) {
+            ESP_LOGI(TAG, "airflow control setting changed");
+            this->airflow_control_select_->publish_state(wantedRunStates.airflow_control);
+        }
+    }
+    if (this->wantedRunStates.air_purifier > -1) {
+        if (this->wantedRunStates.air_purifier == -1) {
+            this->wantedRunStates.air_purifier = this->currentRunStates.air_purifier;
+        }
+        if (this->air_purifier_switch_->state != this->wantedRunStates.air_purifier) {
+            ESP_LOGI(TAG, "air purifier setting changed");
+            this->air_purifier_switch_->publish_state(wantedRunStates.air_purifier);
+        }
+    }
+    if (this->wantedRunStates.night_mode > -1) {
+        if (this->wantedRunStates.night_mode == -1) {
+            this->wantedRunStates.night_mode = this->currentRunStates.night_mode;
+        }
+        if (this->night_mode_switch_->state != this->wantedRunStates.night_mode) {
+            ESP_LOGI(TAG, "night mode setting changed");
+            this->night_mode_switch_->publish_state(wantedRunStates.night_mode);
+        }
+    }
+    if (this->wantedRunStates.circulator > -1) {
+        if (this->wantedRunStates.circulator == -1) {
+            this->wantedRunStates.circulator = this->currentRunStates.circulator;
+        }
+        if (this->circulator_switch_->state != this->wantedRunStates.circulator) {
+            ESP_LOGI(TAG, "circulator setting changed");
+            this->circulator_switch_->publish_state(wantedRunStates.circulator);
+        }
+    }
 }
 
 
@@ -306,11 +394,26 @@ void CN105Climate::sendWantedSettings() {
     }
 }
 
-
-
 void CN105Climate::buildAndSendRequestPacket(int packetType) {
+    // Legacy path kept temporarily if some callsites still pass packetType indices.
+    // Map legacy indices to real codes and delegate to buildAndSendInfoPacket.
+    uint8_t code = 0x02; // default to settings
+    switch (packetType) {
+    case 0: code = 0x02; break; // RQST_PKT_SETTINGS
+    case 1: code = 0x03; break; // RQST_PKT_ROOM_TEMP
+    case 2: code = 0x04; break; // RQST_PKT_UNKNOWN
+    case 3: code = 0x05; break; // RQST_PKT_TIMERS
+    case 4: code = 0x06; break; // RQST_PKT_STATUS
+    case 5: code = 0x09; break; // RQST_PKT_STANDBY
+    case 6: code = 0x42; break; // RQST_PKT_HVAC_OPTIONS
+    default: code = 0x02; break;
+    }
+    this->buildAndSendInfoPacket(code);
+}
+
+void CN105Climate::buildAndSendInfoPacket(uint8_t code) {
     uint8_t packet[PACKET_LEN] = {};
-    createInfoPacket(packet, packetType);
+    createInfoPacket(packet, code);
     this->writePacket(packet, PACKET_LEN);
 }
 
@@ -320,11 +423,10 @@ void CN105Climate::buildAndSendRequestsInfoPackets() {
     if (this->isHeatpumpConnected_) {
         ESP_LOGV(LOG_UPD_INT_TAG, "triggering infopacket because of update interval tick");
         ESP_LOGV("CONTROL_WANTED_SETTINGS", "hasChanged is %s", wantedSettings.hasChanged ? "true" : "false");
-        ESP_LOGD(TAG, "sending a request for settings packet (0x02)");
         this->loopCycle.cycleStarted();
         this->nbCycles_++;
-        ESP_LOGD(LOG_CYCLE_TAG, "2a: Sending settings request (0x02)");
-        this->buildAndSendRequestPacket(RQST_PKT_SETTINGS);
+        // Envoie la première requête activable (la liste est enregistrée une fois au constructeur)
+        this->sendNextAfter(0x00); // 0x00 -> start, pick first eligible
     } else {
         this->reconnectIfConnectionLost();
     }
@@ -334,25 +436,15 @@ void CN105Climate::buildAndSendRequestsInfoPackets() {
 
 
 
-void CN105Climate::createInfoPacket(uint8_t* packet, uint8_t packetType) {
+void CN105Climate::createInfoPacket(uint8_t* packet, uint8_t code) {
     ESP_LOGD(TAG, "creating Info packet");
     // add the header to the packet
     for (int i = 0; i < INFOHEADER_LEN; i++) {
         packet[i] = INFOHEADER[i];
     }
 
-    // set the mode - settings or room temperature
-    if (packetType != PACKET_TYPE_DEFAULT) {
-        packet[5] = INFOMODE[packetType];
-    } else {
-        // request current infoMode, and increment for the next request
-        packet[5] = INFOMODE[infoMode];
-        if (infoMode == (INFOMODE_LEN - 1)) {
-            infoMode = 0;
-        } else {
-            infoMode++;
-        }
-    }
+    // directly set requested info code (0x02, 0x03, 0x06, 0x09, 0x42, ...)
+    packet[5] = code;
 
     // pad the packet out
     for (int i = 0; i < 15; i++) {
@@ -390,4 +482,49 @@ void CN105Climate::sendRemoteTemperature() {
 
     // this resets the timeout
     this->pingExternalTemperature();
+}
+
+void CN105Climate::sendWantedRunStates() {
+    uint8_t packet[PACKET_LEN] = {};
+
+    prepareSetPacket(packet, PACKET_LEN);
+
+    packet[5] = 0x08;
+    if (this->wantedRunStates.airflow_control != nullptr) {
+        ESP_LOGD(TAG, "airflow control -> %s", getAirflowControlSetting());
+        packet[11] = AIRFLOW_CONTROL[lookupByteMapIndex(AIRFLOW_CONTROL_MAP, 3, getAirflowControlSetting(), "run state (write)")];
+        packet[6] += RUN_STATE_PACKET_1[4];
+    }
+    if (this->wantedRunStates.air_purifier > -1) {
+        if (getAirPurifierRunState() != currentRunStates.air_purifier) {
+            ESP_LOGI(TAG, "air purifier switch state -> %s", getAirPurifierRunState() ? "ON" : "OFF");
+            packet[17] = getAirPurifierRunState() ? 0x01 : 0x00;
+            packet[7] += RUN_STATE_PACKET_2[1];
+        }
+    }
+    if (this->wantedRunStates.night_mode > -1) {
+        if (getNightModeRunState() != currentRunStates.night_mode) {
+            ESP_LOGI(TAG, "night mode switch state -> %s", this->getNightModeRunState() ? "ON" : "OFF");
+            packet[18] = getNightModeRunState() ? 0x01 : 0x00;
+            packet[7] += RUN_STATE_PACKET_2[2];
+        }
+    }
+    if (this->wantedRunStates.circulator > -1) {
+        if (getCirculatorRunState() != currentRunStates.circulator) {
+            ESP_LOGI(TAG, "circulator switch state -> %s", getCirculatorRunState() ? "ON" : "OFF");
+            packet[19] = getCirculatorRunState() ? 0x01 : 0x00;
+            packet[7] += RUN_STATE_PACKET_2[3];
+        }
+    }
+
+    // Add the checksum
+    uint8_t chkSum = checkSum(packet, 21);
+    packet[21] = chkSum;
+    ESP_LOGD(LOG_SET_RUN_STATE, "Sending set run state package (0x08)");
+    writePacket(packet, PACKET_LEN);
+
+    this->publishWantedRunStatesStateToHA();
+
+    this->wantedRunStates.resetSettings();
+    this->loopCycle.deferCycle();
 }

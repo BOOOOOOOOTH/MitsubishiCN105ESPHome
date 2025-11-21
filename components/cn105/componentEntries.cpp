@@ -12,9 +12,9 @@ void CN105Climate::setup() {
 
     ESP_LOGD(TAG, "Component initialization: setup call");
     this->current_temperature = NAN;
-
     this->target_temperature = NAN;
-
+    this->target_temperature_low = NAN;
+    this->target_temperature_high = NAN;
     this->fan_mode = climate::CLIMATE_FAN_OFF;
     this->swing_mode = climate::CLIMATE_SWING_OFF;
     this->initBytePointer();
@@ -31,6 +31,7 @@ void CN105Climate::setup() {
     //ESP_LOGI(TAG, "debounce_delay is set to %lu", this->debounce_delay_);
     log_info_uint32(TAG, "debounce_delay is set to ", this->debounce_delay_);
 
+    // Laisser le chemin standard tenter l'init; on n'intervient bas-niveau qu'en cas d'échec
     this->setupUART();
     this->sendFirstConnectionPacket();
 }
@@ -44,6 +45,8 @@ void CN105Climate::loop() {
     if (!this->processInput()) {                                            // if we don't get any input: no read op
         if ((this->wantedSettings.hasChanged) && (!this->loopCycle.isCycleRunning())) {
             this->checkPendingWantedSettings();
+        } else if ((this->wantedRunStates.hasChanged) && (!this->loopCycle.isCycleRunning())) {
+            this->checkPendingWantedRunStates();
         } else {
             if (this->loopCycle.isCycleRunning()) {                         // if we are  running an update cycle
                 this->loopCycle.checkTimeout(this->update_interval_);

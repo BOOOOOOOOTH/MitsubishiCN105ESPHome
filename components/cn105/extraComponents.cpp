@@ -17,8 +17,9 @@ void CN105Climate::set_vertical_vane_select(
     this->vertical_vane_select_ = vertical_vane_select;
 
     // builds option list from SwiCago vaneMap
-    std::vector<std::string> vaneOptions(std::begin(VANE_MAP), std::end(VANE_MAP));
-    this->vertical_vane_select_->traits.set_options(vaneOptions);
+    this->vertical_vane_select_->traits.set_options({
+        VANE_MAP[0], VANE_MAP[1], VANE_MAP[2], VANE_MAP[3], VANE_MAP[4], VANE_MAP[5], VANE_MAP[6]
+        });
 
     this->vertical_vane_select_->setCallbackFunction([this](const char* setting) {
 
@@ -37,34 +38,15 @@ void CN105Climate::set_horizontal_vane_select(
     this->horizontal_vane_select_ = horizontal_vane_select;
 
     // builds option list from SwiCago wideVaneMap
-    std::vector<std::string> wideVaneOptions(std::begin(WIDEVANE_MAP), std::end(WIDEVANE_MAP));
-    this->horizontal_vane_select_->traits.set_options(wideVaneOptions);
+    this->horizontal_vane_select_->traits.set_options({
+        WIDEVANE_MAP[0], WIDEVANE_MAP[1], WIDEVANE_MAP[2], WIDEVANE_MAP[3],
+        WIDEVANE_MAP[4], WIDEVANE_MAP[5], WIDEVANE_MAP[6], WIDEVANE_MAP[7]
+        });
 
     this->horizontal_vane_select_->setCallbackFunction([this](const char* setting) {
-
         ESP_LOGD("EVT", "wideVane.control() -> Demande un chgt de réglage de la wideVane: %s", setting);
 
         this->setWideVaneSetting(setting);
-        this->wantedSettings.hasChanged = true;
-        this->wantedSettings.hasBeenSent = false;
-        this->wantedSettings.lastChange = CUSTOM_MILLIS;
-        });
-
-}
-
-void CN105Climate::set_isee_direction_select(
-    ISeeDirectionSelect* isee_direction_select) {
-    this->isee_direction_select_ = isee_direction_select;
-
-    // builds option list from ISEE direction map
-    std::vector<std::string> iseeDirectionOptions(std::begin(ISEE_DIRECTION_MAP), std::end(ISEE_DIRECTION_MAP));
-    this->isee_direction_select_->traits.set_options(iseeDirectionOptions);
-
-    this->isee_direction_select_->setCallbackFunction([this](const char* setting) {
-
-        ESP_LOGD("EVT", "iseeDirection.control() -> Demande un chgt de réglage de la direction ISEE: %s", setting);
-
-        this->setISeeDirectionSetting(setting);
         this->wantedSettings.hasChanged = true;
         this->wantedSettings.hasBeenSent = false;
         this->wantedSettings.lastChange = CUSTOM_MILLIS;
@@ -159,6 +141,38 @@ void CN105Climate::set_functions_set_value(FunctionsNumber* Number) {
         });
 }
 
+void CN105Climate::set_air_purifier_switch(HVACOptionSwitch* Switch) {
+    this->air_purifier_switch_ = Switch;
+    this->air_purifier_switch_->setCallbackFunction([this](bool state) {
+        this->wantedRunStates.air_purifier = state;
+
+        this->wantedRunStates.hasChanged = true;
+        this->wantedRunStates.hasBeenSent = false;
+        this->wantedRunStates.lastChange = CUSTOM_MILLIS;
+        });
+}
+
+void CN105Climate::set_night_mode_switch(HVACOptionSwitch* Switch) {
+    this->night_mode_switch_ = Switch;
+    this->night_mode_switch_->setCallbackFunction([this](bool state) {
+        this->wantedRunStates.night_mode = state;
+
+        this->wantedRunStates.hasChanged = true;
+        this->wantedRunStates.hasBeenSent = false;
+        this->wantedRunStates.lastChange = CUSTOM_MILLIS;
+        });
+}
+
+void CN105Climate::set_circulator_switch(HVACOptionSwitch* Switch) { // only in HEAT mode? Manual says so, but it is possible to set the bit. The remote will not do it.
+    this->circulator_switch_ = Switch;
+    this->circulator_switch_->setCallbackFunction([this](bool state) {
+        this->wantedRunStates.circulator = state;
+
+        this->wantedRunStates.hasChanged = true;
+        this->wantedRunStates.hasBeenSent = false;
+        this->wantedRunStates.lastChange = CUSTOM_MILLIS;
+        });
+}
 
 void CN105Climate::set_sub_mode_sensor(esphome::text_sensor::TextSensor* Sub_mode_sensor) {
     this->Sub_mode_sensor_ = Sub_mode_sensor;
@@ -174,28 +188,6 @@ void CN105Climate::set_hp_uptime_connection_sensor(uptime::HpUpTimeConnectionSen
 
 void CN105Climate::set_use_fahrenheit_support_mode(bool value) {
     this->use_fahrenheit_support_mode_ = value;
+    this->fahrenheitSupport_.setUseFahrenheitSupportMode(value);
     ESP_LOGI(TAG, "Fahrenheit compatibility mode enabled: %s", value ? "true" : "false");
 }
-
-// Helper method to test ISEE direction function codes
-void CN105Climate::testISeeDirectionFunctionCode(int functionCode) {
-    ESP_LOGI(TAG, "Testing ISEE direction function code %d", functionCode);
-    
-    // Test all three values (1=AUTO, 2=INDIRECT, 3=DIRECT)
-    for (int value = 1; value <= 3; value++) {
-        if (functions.setValue(functionCode, value)) {
-            ESP_LOGI(TAG, "Set function code %d to value %d", functionCode, value);
-            // Send the function codes
-            if (setFunctions(functions)) {
-                ESP_LOGI(TAG, "Successfully sent function code %d with value %d", functionCode, value);
-            } else {
-                ESP_LOGW(TAG, "Failed to send function code %d with value %d", functionCode, value);
-            }
-        } else {
-            ESP_LOGW(TAG, "Failed to set function code %d to value %d", functionCode, value);
-        }
-        // Wait a bit between tests
-        delay(2000);
-    }
-}
-

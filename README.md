@@ -9,6 +9,28 @@
 >     name: Uptime
 > ```
 
+> [!WARNING]  
+> Due to a change in ESPHome 2025.8.0, some users are facing UART connection issues after a cold boot. Forcing the firmware esphome version to a previous release (2025.7.5 and below) solves the issue (no cold boot required). Alternative is to force ESP32 IDF version to 5.4.0. Note that OTA updates to 2025.8.0+ may work but can break after a subsequent cold boot.
+>
+> _"commit 116c91e9c5fc6d0d32191bd4e6d6e406e2bff6bf Author: Jonathan Swoboda <154711427+swoboda1337@users.noreply.github.com> Date: Tue Jul 22 19:15:31 2025 -0400_
+>
+> _Bump ESP32 IDF version to 5.4.2 and Arduino version to 3.2.1 (#9770)"_
+>
+> [!IMPORTANT]  
+> Temporary fix included: This component now implements a fallback low-level UART reinitialization that triggers only if the initial (normal) connection fails at boot. It reconfigures the UART controller linked to your `uart:` block (clock source, reapplies baudrate, RX pull-up, flush, etc.). No YAML `on_boot` workaround is required. This aims to mitigate ESP-IDF 5.4.x regressions observed on some ESP32 at low baud (2400, 8E1).
+>
+> If this fallback still doesn’t work on your hardware, you can temporarily force ESP‑IDF 5.4.0 in your YAML:
+>
+> ```yaml
+> esp32:
+>   board: esp32-s3-devkitc-1
+>   framework:
+>     type: esp-idf
+>     version: 5.4.0
+>   variant: esp32s3
+>   flash_size: 8MB
+> ```
+
 This project is a firmware for ESP32 microcontrollers supporting UART communication via the CN105 Mitsubishi connector. Its purpose is to enable complete control of a compatible Mitsubishi heat pump through Home Assistant, a web interface, or any MQTT client.
 
 It uses the ESPHome framework and is compatible with the Arduino framework and ESP-IDF.
@@ -59,6 +81,7 @@ This project maintains all functionalities of the original [geoffdavis](https://
 - Generic ESP32 Dev Kit (ESP32): tested
 - M5Stack ATOM Lite : tested
 - M5Stack ATOM S3 Lite: tested w/ [modifications](https://github.com/echavet/MitsubishiCN105ESPHome/discussions/83)
+- M5Stack NanoC6: [tested over both wifi and thread](https://github.com/echavet/MitsubishiCN105ESPHome/discussions/340)
 - M5Stack StampS3
 - Seeed Studios Xiao ESP32S3: tested
 - WeMos D1 Mini Pro (ESP8266): tested (but not currently recommended, see above)
@@ -78,6 +101,10 @@ Units tested by project contributors include:
 - `MSZ-AY35VGKP`
 - `MSZ-FSxxNA`
 - `MSZ-FHxxNA`
+- `MSZ-EF42VE`
+- `MSXY-FN10VE` (https://github.com/echavet/MitsubishiCN105ESPHome/discussions/368)
+- `MSZ-AP20VGK`
+- `MSZ-FT50VG2`
 
 ## Usage
 
@@ -244,6 +271,26 @@ climate:
       name: Runtime Hours
       entity_category: diagnostic
       disabled_by_default: true
+    air_purifier_switch:
+      name: Air purifier
+      disabled_by_default: true
+    night_mode_switch:
+      name: Night mode
+      disabled_by_default: true
+    circulator_switch:
+      name: Circulator
+      disabled_by_default: true
+    airflow_control_select:
+      name: Airflow Control
+      disabled_by_default: true
+    supports:
+      # Explicitly control dual setpoint support in the UI/traits
+      # Defaults to false when omitted
+      dual_setpoint: true
+      # You can still specify supported modes as before
+      mode: [AUTO, COOL, HEAT, DRY, FAN_ONLY]
+      fan_mode: [AUTO, QUIET, LOW, MEDIUM, HIGH]
+      swing_mode: ["OFF", VERTICAL]
 ```
 
 > [!TIP]
@@ -313,60 +360,76 @@ esphome:
   friendly_name: My Heatpump 1
 
 # For ESP8266 Devices
+
 #esp8266:
-#  board: d1_mini
+
+# board: d1_mini
 
 #uart:
-#  id: HP_UART
-#  baud_rate: 2400
-#  tx_pin: 1
-#  rx_pin: 3
+
+# id: HP_UART
+
+# baud_rate: 2400
+
+# tx_pin: 1
+
+# rx_pin: 3
 
 # For ESP32 Devices
 
 esp32:
-  board: esp32doit-devkit-v1
-  framework:
-    type: esp-idf
+board: esp32doit-devkit-v1
+framework:
+type: esp-idf
 
 uart:
-  id: HP_UART
-  baud_rate: 2400
-  tx_pin: GPIO17
-  rx_pin: GPIO16
+id: HP_UART
+baud_rate: 2400
+tx_pin: GPIO17
+rx_pin: GPIO16
 
 external_components:
-  - source: github://echavet/MitsubishiCN105ESPHome
+
+- source: github://echavet/MitsubishiCN105ESPHome
 
 # Climate entity configuration
+
 climate:
+
 - platform: cn105
   name: "My Heat Pump"
   update_interval: 2s
 
 # Default logging level
+
 logger:
-#  hardware_uart: UART1 # Uncomment on ESP8266 devices
-  level: INFO
+
+# hardware_uart: UART1 # Uncomment on ESP8266 devices
+
+level: INFO
 
 # Enable Home Assistant API
+
 api:
- encryption:
- key: !secret api_key
+encryption:
+key: !secret api_key
 
 ota:
-  platform: esphome # Required for ESPhome 2024.6.0 and greater
-  password: !secret ota_password
+platform: esphome # Required for ESPhome 2024.6.0 and greater
+password: !secret ota_password
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  ap:
-    ssid: "Heatpump Fallback Hotspot"
-    password: !secret fallback_password
+ssid: !secret wifi_ssid
+password: !secret wifi_password
+
+# Enable fallback hotspot (captive portal) in case wifi connection fails
+
+ap:
+ssid: "Heatpump Fallback Hotspot"
+password: !secret fallback_password
 
 captive_portal:
+
 ````
 </details>
 
@@ -712,6 +775,8 @@ Compatible units (as reported by users):
 | MSZ-FSxxNA     | MXZ-4C36NA2      | Works                              |
 |                | MUZ-FD25NA       | Not working                        |
 | MSZ-LN35       | MUZ-LN35         | Not working                        |
+| MSZ-AP20VGK    | MXZ-4F83VF       | Works                              |
+| MSZ-FT50VG2    | MUZ-FT50VG       | Works                              |
 
 ### Auto and Stage Sensors
 
